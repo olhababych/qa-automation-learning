@@ -21,3 +21,8 @@ venv/
 # Secrets
 .env
 *.key
+
+# Authentication state (contains active tokens)
+auth_state.json
+# Browser extensions (Phantom etc)
+extensions/

@@ -1,3 +1,4 @@
+import re
 from playwright.sync_api import Page, Locator
 from pages.base_page import BasePage
 
@@ -9,7 +10,7 @@ class TradingPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        # Кнопки сторінки
+        # Гостьовий стан
         self.sign_in_button: Locator = page.get_by_role("button", name="Sign In")
         self.trading_pair_button: Locator = page.get_by_role("button", name="BTC /USDC -")
 
@@ -29,8 +30,12 @@ class TradingPage(BasePage):
         self.no_positions_history_text: Locator = page.get_by_text("No positions history")
         self.no_order_history_text: Locator = page.get_by_text("No order history")
 
-        # Поле вводу розміру позиції
+        # Поле розміру позиції
         self.size_input: Locator = page.get_by_placeholder("0").first
+
+        # Авторизований стан
+        # Баланс у header, формат "$0.00", "$1,234.56", тощо
+        self.header_balance: Locator = page.get_by_text(re.compile(r"^\$[\d,]+\.\d{2}$"))
 
     def open(self) -> None:
         """Відкрити сторінку торгівлі BTCUSDC."""
@@ -43,7 +48,7 @@ class TradingPage(BasePage):
     def close_auth_modal(self) -> None:
         """Закрити auth-модалку через хрестик."""
         self.auth_modal_close_button.click()
-    
+
     def fill_size(self, value: str) -> None:
         """Ввести значення в поле розміру позиції."""
         self.size_input.fill(value)
