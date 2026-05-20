@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Generator
 
 import pytest
 from playwright.sync_api import Page, Browser, BrowserContext
@@ -15,7 +16,7 @@ def trading_page(page: Page) -> TradingPage:
 
 
 @pytest.fixture
-def authenticated_context(browser: Browser) -> BrowserContext:
+def authenticated_context(browser: Browser) -> Generator[BrowserContext, None, None]:
     """
     Створює контекст браузера з завантаженою авторизованою сесією.
     Файл auth_state.json створюється скриптом save_auth_state.py.
@@ -31,7 +32,9 @@ def authenticated_context(browser: Browser) -> BrowserContext:
 
 
 @pytest.fixture
-def authenticated_page(authenticated_context: BrowserContext) -> Page:
+def authenticated_page(
+    authenticated_context: BrowserContext,
+) -> Generator[Page, None, None]:
     """
     Сторінка з авторизованою сесією.
     Використовуйте у тестах, які потребують залогіненого користувача.
