@@ -30,8 +30,14 @@ class TradingPage(BasePage):
         self.no_positions_history_text: Locator = page.get_by_text("No positions history")
         self.no_order_history_text: Locator = page.get_by_text("No order history")
 
-        # Поле розміру позиції
+        # Поле розміру позиції (TODO: ask FE team for data-testid)
+        #.first використовуємо, бо placeholder="0" може бути на кількох полях
         self.size_input: Locator = page.get_by_placeholder("0").first
+
+        # Динамічний розрахунок BTC еквіваленту, формат "~0 BTC", "~0.00128 BTC"
+        self.size_btc_equivalent: Locator = page.get_by_text(
+        re.compile(r"^~[\d.]+\s+BTC$")
+)
 
         # Авторизований стан
         # Баланс у header, формат "$0.00", "$1,234.56", тощо
@@ -44,6 +50,15 @@ class TradingPage(BasePage):
         # Перемикач напрямку угоди (Long/Short селектор)
         self.long_tab: Locator = page.get_by_role("button", name="Long", exact=True)
         self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
+
+        # Фінансові операції
+        self.deposit_button: Locator = page.get_by_role("button", name="Deposit")
+        self.withdraw_button: Locator = page.get_by_role("button", name="Withdraw")
+
+        # Total equity у нижній панелі
+        self.total_equity_value: Locator = page.get_by_text( 
+            re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
+            ).first
 
     def open(self) -> None:
         """Відкрити сторінку торгівлі BTCUSDC."""
