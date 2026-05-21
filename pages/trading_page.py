@@ -59,6 +59,12 @@ class TradingPage(BasePage):
         self.total_equity_value: Locator = page.get_by_text( 
             re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
             ).first
+        
+        # Leverage селектор і модалка
+        self.leverage_button: Locator = page.get_by_role("button", name="50x")
+        self.leverage_modal_heading: Locator = page.get_by_text("Adjust BTCUSDC Leverage")
+        self.leverage_modal_close: Locator = page.get_by_role("button", name="Close")
+        self.leverage_modal_confirm: Locator = page.get_by_role("button", name="Confirm")
 
     def open(self) -> None:
         """Відкрити сторінку торгівлі BTCUSDC."""
@@ -86,3 +92,13 @@ class TradingPage(BasePage):
     def select_short(self) -> None:
         """Перемкнути напрямок угоди на Short."""
         self.short_tab.click()
+
+
+    def open_leverage_modal(self) -> None:
+        """Відкрити модалку зміни leverage."""
+        self.leverage_button.click()
+
+
+    def close_leverage_modal(self) -> None:
+        """Закрити модалку leverage без збереження змін."""
+        self.leverage_modal_close.click()

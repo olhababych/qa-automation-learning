@@ -88,3 +88,25 @@ def test_size_input_updates_btc_equivalent(
     # Перевіряємо: значення BTC еквіваленту змінилось
     # (НЕ "~0 BTC" — це означає, що відбулась конвертація)
     expect(authenticated_trading_page.size_btc_equivalent).not_to_have_text("~0 BTC")
+
+
+def test_leverage_modal_opens_and_closes(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Клік на кнопку leverage відкриває модалку Adjust BTCUSDC Leverage.
+    Натискання Close закриває модалку без застосування змін.
+    """
+    authenticated_trading_page.open()
+    
+    # Стартовий стан: модалка не видима
+    expect(authenticated_trading_page.leverage_modal_heading).not_to_be_visible()
+    
+    # Відкриваємо модалку
+    authenticated_trading_page.open_leverage_modal()
+    expect(authenticated_trading_page.leverage_modal_heading).to_be_visible()
+    expect(authenticated_trading_page.leverage_modal_confirm).to_be_visible()
+    
+    # Закриваємо
+    authenticated_trading_page.close_leverage_modal()
+    expect(authenticated_trading_page.leverage_modal_heading).not_to_be_visible()
