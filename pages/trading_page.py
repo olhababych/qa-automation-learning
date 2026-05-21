@@ -37,6 +37,14 @@ class TradingPage(BasePage):
         # Баланс у header, формат "$0.00", "$1,234.56", тощо
         self.header_balance: Locator = page.get_by_text(re.compile(r"^\$[\d,]+\.\d{2}$"))
 
+        # Action button (змінюється залежно від Long/Short селектора)
+        self.buy_long_button: Locator = page.get_by_role("button", name="Buy / Long")
+        self.sell_short_button: Locator = page.get_by_role("button", name="Sell / Short")
+
+        # Перемикач напрямку угоди (Long/Short селектор)
+        self.long_tab: Locator = page.get_by_role("button", name="Long", exact=True)
+        self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
+
     def open(self) -> None:
         """Відкрити сторінку торгівлі BTCUSDC."""
         super().open(self.URL)
@@ -48,7 +56,18 @@ class TradingPage(BasePage):
     def close_auth_modal(self) -> None:
         """Закрити auth-модалку через хрестик."""
         self.auth_modal_close_button.click()
-
+        
+        
     def fill_size(self, value: str) -> None:
         """Ввести значення в поле розміру позиції."""
         self.size_input.fill(value)
+        
+        
+    def select_long(self) -> None:
+        """Перемкнути напрямок угоди на Long."""
+        self.long_tab.click()
+
+
+    def select_short(self) -> None:
+        """Перемкнути напрямок угоди на Short."""
+        self.short_tab.click()
