@@ -36,8 +36,8 @@ class TradingPage(BasePage):
 
         # Динамічний розрахунок BTC еквіваленту, формат "~0 BTC", "~0.00128 BTC"
         self.size_btc_equivalent: Locator = page.get_by_text(
-        re.compile(r"^~[\d.]+\s+BTC$")
-)
+            re.compile(r"^~[\d.]+\s+BTC$")
+        )
 
         # Авторизований стан
         # Баланс у header, формат "$0.00", "$1,234.56", тощо
@@ -58,13 +58,30 @@ class TradingPage(BasePage):
         # Total equity у нижній панелі
         self.total_equity_value: Locator = page.get_by_text( 
             re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
-            ).first
+        ).first
         
         # Leverage селектор і модалка
         self.leverage_button: Locator = page.get_by_role("button", name="50x")
         self.leverage_modal_heading: Locator = page.get_by_text("Adjust BTCUSDC Leverage")
         self.leverage_modal_close: Locator = page.get_by_role("button", name="Close")
         self.leverage_modal_confirm: Locator = page.get_by_role("button", name="Confirm")
+
+        # Значення leverage всередині модалки, формат "x50", "x49", "x100"
+        # TODO: replace with data-testid when FE adds them
+        # Локалізуємо через текст "x50" як якір — від нього беремо сусідні кнопки
+        # Значення leverage у модалці — це <div>, тоді як на бейджі пари це <span>
+        # TODO: replace with data-testid when FE adds them
+        self.leverage_modal_value: Locator = page.locator("div").filter(
+        has_text=re.compile(r"^x\d+$")
+        ).first
+        # Кнопки керування у модалці leverage
+        self.leverage_modal_decrease: Locator = (
+        self.leverage_modal_value.locator("..").locator("button").first
+        )
+        self.leverage_modal_increase: Locator = (
+        self.leverage_modal_value.locator("..").locator("button").last
+        )
+
 
     def open(self) -> None:
         """Відкрити сторінку торгівлі BTCUSDC."""
@@ -102,3 +119,12 @@ class TradingPage(BasePage):
     def close_leverage_modal(self) -> None:
         """Закрити модалку leverage без збереження змін."""
         self.leverage_modal_close.click()
+
+
+    def decrease_leverage(self) -> None:
+        """Зменшити leverage на 1 (натискання мінус-кнопки у модалці)."""
+        self.leverage_modal_decrease.click()
+
+    def increase_leverage(self) -> None:
+        """Збільшити leverage на 1 (натискання плюс-кнопки у модалці)."""
+        self.leverage_modal_increase.click()
