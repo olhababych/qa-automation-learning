@@ -82,6 +82,18 @@ class TradingPage(BasePage):
         self.leverage_modal_value.locator("..").locator("button").last
         )
 
+        # Deposit модалка
+        self.deposit_modal_subtitle: Locator = page.get_by_text(
+        "Transfer money to your trading account"
+        )
+        self.deposit_modal_close: Locator = page.get_by_role("button", name="Close")
+
+        # Withdraw модалка
+        self.withdraw_modal_subtitle: Locator = page.get_by_text(
+        "Transfer money from your trading account"
+        )
+        self.withdraw_modal_close: Locator = page.get_by_role("button", name="Close")
+
 
     def open(self) -> None:
         """Відкрити сторінку торгівлі BTCUSDC."""
@@ -128,3 +140,20 @@ class TradingPage(BasePage):
     def increase_leverage(self) -> None:
         """Збільшити leverage на 1 (натискання плюс-кнопки у модалці)."""
         self.leverage_modal_increase.click()
+
+
+    def open_deposit_modal(self) -> None:
+        """Відкрити модалку Deposit."""
+        self.deposit_button.click()
+
+    def close_deposit_modal(self) -> None:
+        """Закрити модалку Deposit без транзакції."""
+        self.deposit_modal_close.click()
+
+    def open_withdraw_modal(self) -> None:
+        """Відкрити модалку Withdraw."""
+        self.withdraw_button.click()
+
+    def close_withdraw_modal(self) -> None:
+        """Закрити модалку Withdraw без транзакції."""
+        self.withdraw_modal_close.click()

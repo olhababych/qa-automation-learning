@@ -15,3 +15,45 @@ def test_deposit_and_withdraw_buttons_visible(
     authenticated_trading_page.open()
     expect(authenticated_trading_page.deposit_button).to_be_visible()
     expect(authenticated_trading_page.withdraw_button).to_be_visible()
+
+
+def test_deposit_modal_opens_and_closes(
+    authenticated_trading_page: TradingPage,
+    ):
+    """
+    Клік на кнопку Deposit відкриває модалку Deposit.
+    Натискання Close закриває модалку без транзакції.
+    """
+    authenticated_trading_page.open()
+
+    # Стартовий стан: модалка не видима
+    expect(authenticated_trading_page.deposit_modal_subtitle).not_to_be_visible()
+
+    # Відкриваємо
+    authenticated_trading_page.open_deposit_modal()
+    expect(authenticated_trading_page.deposit_modal_subtitle).to_be_visible()
+
+    # Закриваємо
+    authenticated_trading_page.close_deposit_modal()
+    expect(authenticated_trading_page.deposit_modal_subtitle).not_to_be_visible()
+
+
+def test_withdraw_modal_opens_and_closes(
+    authenticated_trading_page: TradingPage,
+    ):
+    """
+    Клік на кнопку Withdraw відкриває модалку Withdraw.
+    Натискання Close закриває модалку без транзакції.
+    """
+    authenticated_trading_page.open()
+
+    # Стартовий стан: модалка не видима
+    expect(authenticated_trading_page.withdraw_modal_subtitle).not_to_be_visible()
+
+    # Відкриваємо
+    authenticated_trading_page.open_withdraw_modal()
+    expect(authenticated_trading_page.withdraw_modal_subtitle).to_be_visible()
+
+    # Закриваємо
+    authenticated_trading_page.close_withdraw_modal()
+    expect(authenticated_trading_page.withdraw_modal_subtitle).not_to_be_visible()
