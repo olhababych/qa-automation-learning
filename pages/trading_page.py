@@ -12,8 +12,8 @@ class TradingPage(BasePage):
         super().__init__(page)
         # Гостьовий стан
         self.sign_in_button: Locator = page.get_by_role("button", name="Sign In")
-        self.trading_pair_button: Locator = page.get_by_role("button", name="BTC /USDC -")
-
+        self.trading_pair_button: Locator = page.get_by_role("button", name=re.compile(r"^BTC \/USDC x\d+$"))
+        
         # Auth-модалка (Dynamic SDK)
         self.auth_modal_heading: Locator = page.get_by_test_id("dynamic-auth-modal-heading")
         self.auth_modal_close_button: Locator = page.get_by_test_id("close-button")
