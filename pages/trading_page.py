@@ -1,5 +1,5 @@
 import re
-from playwright.sync_api import Page, Locator
+from playwright.sync_api import Page, Locator, expect
 from pages.base_page import BasePage
 
 
@@ -173,27 +173,48 @@ class TradingPage(BasePage):
     def open_long_position(self, size: str) -> None:
         """Відкрити Long-позицію заданого розміру в USDC.
 
-        Виконує повний флоу: вибір Long → введення розміру → клік Buy / Long.
+        Виконує повний флоу: вибір Long → введення розміру → очікування,
+        поки UI розрахує BTC-еквівалент → клік Buy / Long.
+
+        Очікування на BTC-еквівалент критичне: без нього Playwright клікає
+        Buy/Long швидше, ніж React оновить state з введеним розміром,
+        і платформа повертає "Order notional below minimum".
+
         Підтвердження транзакції не потрібне (email-логін через Dynamic SDK).
         Затримка появи позиції в UI — до 5 секунд.
         """
         self.select_long()
         self.fill_size(size)
+        # Чекаємо, поки UI відобразить НЕ-нульовий BTC-еквівалент.
+        # "~0 BTC" → платформа ще не врахувала розмір; "~0.0013 BTC" → готово.
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~0\.\d+\s+BTC$"), timeout=5_000
+        )
         self.buy_long_button.click()
         
         
     def open_short_position(self, size: str) -> None:
         """Відкрити Short-позицію заданого розміру в USDC.
 
-        Виконує повний флоу: вибір Short → введення розміру → клік Sell / Short.
+        Виконує повний флоу: вибір Short → введення розміру → очікування,
+        поки UI розрахує BTC-еквівалент → клік Sell / Short.
         При наявності Long-позиції спрацьовує netting-модель платформи.
+
+        Очікування на BTC-еквівалент критичне: без нього Playwright клікає
+        Sell/Short швидше, ніж React оновить state, і платформа повертає
+        "Order notional below minimum".
+
         Затримка появи/зміни позиції в UI — до 5 секунд.
         """
         self.select_short()
         self.fill_size(size)
+        # Чекаємо, поки UI відобразить НЕ-нульовий BTC-еквівалент.
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~0\.\d+\s+BTC$"), timeout=5_000
+        )
         self.sell_short_button.click()
-        
-        
+
+
     def close_position(self) -> None:
         """Закрити першу відкриту позицію через UI-кнопку Close position.
 
