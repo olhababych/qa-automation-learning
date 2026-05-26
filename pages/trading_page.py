@@ -168,3 +168,37 @@ class TradingPage(BasePage):
     def close_withdraw_modal(self) -> None:
         """Закрити модалку Withdraw без транзакції."""
         self.withdraw_modal_close.click()
+        
+
+    def open_long_position(self, size: str) -> None:
+        """Відкрити Long-позицію заданого розміру в USDC.
+
+        Виконує повний флоу: вибір Long → введення розміру → клік Buy / Long.
+        Підтвердження транзакції не потрібне (email-логін через Dynamic SDK).
+        Затримка появи позиції в UI — до 5 секунд.
+        """
+        self.select_long()
+        self.fill_size(size)
+        self.buy_long_button.click()
+        
+        
+    def open_short_position(self, size: str) -> None:
+        """Відкрити Short-позицію заданого розміру в USDC.
+
+        Виконує повний флоу: вибір Short → введення розміру → клік Sell / Short.
+        При наявності Long-позиції спрацьовує netting-модель платформи.
+        Затримка появи/зміни позиції в UI — до 5 секунд.
+        """
+        self.select_short()
+        self.fill_size(size)
+        self.sell_short_button.click()
+        
+        
+    def close_position(self) -> None:
+        """Закрити першу відкриту позицію через UI-кнопку Close position.
+
+        ВАЖЛИВО: на платформі НЕМАЄ confirmation модалки — клік закриває
+        позицію одразу (потенційний UX-баг, треба обговорити з командою).
+        Затримка закриття — до 5 секунд.
+        """
+        self.close_position_button.click()
