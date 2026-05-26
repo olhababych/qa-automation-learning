@@ -61,3 +61,48 @@ def test_close_position_via_ui_button(
     expect(page.positions_tab_generic).to_have_text(
         "Positions (0)", timeout=POSITION_TIMEOUT_MS
     )
+
+
+def test_open_long_position_creates_position(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо, що відкриття Long-позиції створює запис у таблиці позицій.
+
+    Сценарій:
+    1. Стартовий стан — позицій немає (текст "No open positions" видимий).
+    2. Відкриваємо Long $100.
+    3. Перевіряємо появу позиції через два незалежні індикатори:
+       - вкладка змінилась на "Positions (1)"
+       - текст "No open positions" зник з UI
+    4. Cleanup: закриваємо створену позицію через try/finally,
+       щоб не залишити стан для наступних тестів.
+
+    Cleanup у finally гарантує закриття позиції навіть при failure
+    assertions. Це окрема дія від assertion'ів — teardown, не верифікація.
+    """
+    page = authenticated_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий.
+    # Якщо assertion впаде тут — означає, що залишились незакриті позиції
+    # з попередніх запусків. Треба закрити вручну на платформі.
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Дія: відкрити Long $100
+        page.open_long_position("100")
+
+        # Перевірка №1: лічильник позицій оновився
+        expect(page.positions_tab_with_one).to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+
+        # Перевірка №2: текст "No open positions" зник
+        expect(page.no_positions_text).not_to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+    finally:
+        # Teardown: закриваємо позицію незалежно від результату assertion'ів.
+        # Це гарантує, що тест не залишить стан для наступних запусків.
+        page.close_position()
