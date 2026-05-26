@@ -59,11 +59,23 @@ class TradingPage(BasePage):
         self.total_equity_value: Locator = page.get_by_text( 
             re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
         ).first
+
+        # Position close (CRITICAL: на платформі немає confirmation модалки —
+        # клік закриває позицію одразу; toast notification замість dialog)
+        self.close_position_button: Locator = page.get_by_role("button", name="Close position")
+
+        # Positions tab counter — динамічний, змінюється з 0 на 1, 2 і т.д.
+        # positions_tab_with_one для перевірки появи позиції після Buy/Long
+        # positions_tab_generic — універсальний, для перевірок через to_have_text
+        self.positions_tab_with_one: Locator = page.get_by_role("button", name="Positions (1)")
+        self.positions_tab_generic: Locator = page.locator("button").filter(
+            has_text=re.compile(r"^Positions \(\d+\)$")
+        )
         
         # Leverage селектор і модалка
         self.leverage_button: Locator = page.get_by_role("button", name="50x")
         self.leverage_modal_heading: Locator = page.get_by_text("Adjust BTCUSDC Leverage")
-        self.leverage_modal_close: Locator = page.get_by_role("button", name="Close")
+        self.leverage_modal_close: Locator = page.get_by_role("button", name="Close", exact=True)
         self.leverage_modal_confirm: Locator = page.get_by_role("button", name="Confirm")
 
         # Значення leverage всередині модалки, формат "x50", "x49", "x100"
@@ -86,13 +98,12 @@ class TradingPage(BasePage):
         self.deposit_modal_subtitle: Locator = page.get_by_text(
         "Transfer money to your trading account"
         )
-        self.deposit_modal_close: Locator = page.get_by_role("button", name="Close")
-
+        self.deposit_modal_close: Locator = page.get_by_role("button", name="Close", exact=True)
         # Withdraw модалка
         self.withdraw_modal_subtitle: Locator = page.get_by_text(
         "Transfer money from your trading account"
         )
-        self.withdraw_modal_close: Locator = page.get_by_role("button", name="Close")
+        self.withdraw_modal_close: Locator = page.get_by_role("button",name="Close", exact=True)
 
 
     def open(self) -> None:
