@@ -60,9 +60,21 @@ class TradingPage(BasePage):
             re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
         ).first
 
-        # Position close (CRITICAL: на платформі немає confirmation модалки —
-        # клік закриває позицію одразу; toast notification замість dialog)
+        ## Position close — на новому домені dex-dev.true.trading з'явилась
+        # confirmation модалка (на старому домені її не було). Закриття тепер
+        # двоетапне: клік "Close position" біля позиції → модалка → confirm.
+        # Маленька кнопка на самій позиції (відкриває модалку):
         self.close_position_button: Locator = page.get_by_role("button", name="Close position")
+
+        # Заголовок модалки — використовуємо як якір "модалка з'явилась":
+        self.close_position_modal_heading: Locator = page.get_by_text("Close position?")
+
+        # Кнопка підтвердження в модалці — є дві кнопки з назвою "Close position",
+        # тому розрізняємо її через локалізацію всередині модалки.
+        # Використовуємо filter has_text на тексті модалки як sibling-якір.
+        self.close_position_modal_confirm: Locator = page.locator(
+            "button", has_text="Close position"
+        ).last
 
         # Positions tab counter — динамічний, змінюється з 0 на 1, 2 і т.д.
         # positions_tab_with_one для перевірки появи позиції після Buy/Long
@@ -216,18 +228,27 @@ class TradingPage(BasePage):
 
 
     def close_position(self) -> None:
-        """Закрити першу відкриту позицію через UI-кнопку Close position.
+        """Закрити першу відкриту позицію через двоетапний UI-флоу.
 
-        Метод НЕ просто клікає — він чекає реального закриття на платформі,
-        перш ніж повернути керування. Це критично для використання як
-        teardown у finally-блоках: без очікування браузер може закритись
-        до того, як платформа обробить запит, і позиція залишиться відкритою.
+        На новому домені dex-dev.true.trading з'явилась confirmation
+        модалка: клік на "Close position" біля позиції відкриває модалку
+        з підтвердженням, де треба клікнути другу "Close position".
 
-        ВАЖЛИВО: на платформі НЕМАЄ confirmation модалки — клік закриває
-        позицію одразу (потенційний UX-баг, треба обговорити з командою).
+        Метод чекає реального закриття на платформі перш ніж повернути
+        керування — це критично для використання як teardown у finally:
+        без очікування браузер може закритись до того, як платформа
+        обробить запит, і позиція залишиться відкритою.
+
         Затримка закриття — до 5 секунд (беремо 10 для запасу).
         """
+        # Крок 1: клікаємо маленьку кнопку біля позиції — відкриває модалку
         self.close_position_button.click()
-        # Чекаємо реального закриття — без цього метод повертає керування
-        # до того, як платформа обробить транзакцію.
+
+        # Крок 2: чекаємо появи модалки (заголовок як якір)
+        expect(self.close_position_modal_heading).to_be_visible(timeout=5_000)
+
+        # Крок 3: клікаємо confirm у модалці
+        self.close_position_modal_confirm.click()
+
+        # Крок 4: чекаємо реального закриття позиції на платформі
         expect(self.no_positions_text).to_be_visible(timeout=10_000)
