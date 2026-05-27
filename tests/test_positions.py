@@ -20,6 +20,12 @@ from pages.trading_page import TradingPage
 # Беремо 10 секунд для запасу на повільну мережу.
 POSITION_TIMEOUT_MS = 10_000
 
+# Мінімальний робочий розмір позиції для тестів.
+# Конфіг ринку: min_order_notional = $100, але FE робить round-half-up
+# на BTC equivalent, через що ордери близько до $100 відхиляються бекендом
+# (~50% випадків, детерміновано від поточної ціни BTC).
+# Bug зафіксовано — до фіксу використовуємо $200 як стабільну суму.
+POSITION_SIZE_USDC = "200"
 
 def test_close_position_via_ui_button(
     authenticated_trading_page: TradingPage,
@@ -48,7 +54,7 @@ def test_close_position_via_ui_button(
     expect(page.no_positions_text).to_be_visible()
 
     # Дія 1: відкрити Long $100
-    page.open_long_position("100")
+    page.open_long_position("200")
 
     # Перевірка появи позиції
     expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
@@ -91,7 +97,7 @@ def test_open_long_position_creates_position(
 
     try:
         # Дія: відкрити Long $100
-        page.open_long_position("100")
+        page.open_long_position("200")
 
         # Перевірка №1: лічильник позицій оновився
         expect(page.positions_tab_with_one).to_be_visible(
