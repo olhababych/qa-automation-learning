@@ -1,11 +1,18 @@
+import re
+
 from playwright.sync_api import expect
 from pages.trading_page import TradingPage
 
-
 def test_trading_page_opens(trading_page: TradingPage):
-    """Smoke-тест: сторінка торгівлі BTCUSDC відкривається."""
+    """Smoke-тест: сторінка торгівлі BTCUSDC відкривається.
+
+    Платформа може додавати trailing slash до URL — приймаємо обидва варіанти
+    через regex з необов'язковим слешем у кінці.
+    """
     trading_page.open()
-    expect(trading_page.page).to_have_url(TradingPage.URL)
+    expect(trading_page.page).to_have_url(
+        re.compile(re.escape(TradingPage.URL) + r"/?$")
+    )
 
 
 def test_sign_in_button_visible(trading_page: TradingPage):
@@ -15,10 +22,17 @@ def test_sign_in_button_visible(trading_page: TradingPage):
 
 
 def test_trading_pair_selector_visible(trading_page: TradingPage):
-    """Перевіряємо, що селектор торгової пари відображається у верху сторінки."""
-    trading_page.open()
-    expect(trading_page.trading_pair_button).to_be_visible()
+    """Перевіряємо, що селектор торгової пари відображається у верху сторінки.
 
+    Локатор шукає кнопку з форматом "BTC /USDC x{leverage}". У guest-режимі
+    на новому домені dex-dev.true.trading маркет-дані прилітають із затримкою,
+    і до їх завантаження кнопка показує "BTC /USDC -" (з дефісом замість
+    leverage). Збільшений timeout дає час на завантаження.
+    """
+    trading_page.open()
+    expect(trading_page.trading_pair_button).to_be_visible(timeout=15_000)
+
+    
 def test_sign_in_opens_auth_modal(trading_page: TradingPage):
     """Клік по Sign In відкриває модальне вікно авторизації."""
     trading_page.open()
