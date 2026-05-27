@@ -6,7 +6,7 @@ from pages.base_page import BasePage
 class TradingPage(BasePage):
     """Page Object для сторінки торгівлі BTCUSDC."""
 
-    URL = "https://platform-dev.dd8hy3vt93k5p.amplifyapp.com/trading/BTCUSDC"
+    URL = "https://dex-dev.true.trading/trading/BTCUSDC"
 
     def __init__(self, page: Page):
         super().__init__(page)

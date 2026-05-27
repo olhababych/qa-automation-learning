@@ -11,7 +11,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 
-PLATFORM_URL = "https://platform-dev.dd8hy3vt93k5p.amplifyapp.com/trading/BTCUSDC"
+PLATFORM_URL = "https://dex-dev.true.trading/trading/BTCUSDC"
 AUTH_STATE_FILE = "auth_state.json"
 
 
