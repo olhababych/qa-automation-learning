@@ -159,3 +159,71 @@ def test_opposite_position_with_same_size_closes_position(
 
     # Головна перевірка №2: текст "No open positions" знов видимий
     expect(page.no_positions_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+
+def test_open_short_reduces_long_position(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо netting-модель: відкриття Short меншого розміру зменшує
+    Long-позицію, але не закриває її повністю.
+
+    Сценарій:
+    1. Стартовий стан — позицій немає.
+    2. Відкриваємо Long $200 → margin ≈ $4.00 (BTC ціна × 4).
+    3. Відкриваємо Short $100 (половина від Long).
+    4. Netting: залишається Long $100 → margin ≈ $2.00.
+    5. Перевіряємо, що margin зменшився приблизно вдвічі (±10%).
+
+    Запас ±10% покриває:
+    - округлення BTC equivalent (FE bug — див. round-half-up bug report)
+    - природну зміну ціни BTC між кліками (зазвичай < 1%)
+    - комісії
+
+    Cleanup у finally: після успішного netting залишається Long $100 —
+    закриваємо її через close_position(). Якщо тест впав на середині
+    (наприклад, перший Long не пройшов через FE bug), finally однаково
+    спробує close_position — це безпечно, бо метод закриває першу видиму.
+    """
+    page = authenticated_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Дія 1: відкриваємо Long $200
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо margin початкової Long-позиції
+        margin_before = page.get_long_position_margin()
+
+        # Дія 2: відкриваємо Short на половину розміру — спрацьовує netting
+        page.open_short_position(str(int(POSITION_SIZE_USDC) // 2))
+
+       # Sanity check: позиція все ще існує (Positions (1)),
+        # netting НЕ закрив її повністю
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо margin після netting — чекаємо ЗМІНИ значення в UI,
+        # бо одразу після кліку Sell/Short таблиця ще показує старий рядок.
+        # Без очікування зміни тест читає margin_before (старе) знов і assertion
+        # падає з "margin не змінився".
+        margin_after = page.wait_for_long_position_margin_change(
+            from_value=margin_before
+        )
+
+        # Головна перевірка: margin зменшився приблизно вдвічі
+        expected_margin = margin_before / 2
+        tolerance = expected_margin * 0.1  # ±10%
+        assert abs(margin_after - expected_margin) <= tolerance, (
+            f"Margin after Short netting ({margin_after}) is not within ±10% "
+            f"of expected ({expected_margin:.2f}). "
+            f"Margin before: {margin_before}. "
+            f"Difference: {abs(margin_after - expected_margin):.2f}, "
+            f"tolerance: ±{tolerance:.2f}."
+        )
+    finally:
+        # Teardown: закриваємо залишок позиції
+        page.close_position()
