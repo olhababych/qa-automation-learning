@@ -45,17 +45,18 @@ def test_size_input_updates_btc_equivalent(
     authenticated_trading_page: TradingPage,
 ):
     """
-    При введенні значення у поле Size платформа на льоту
-    конвертує суму у BTC і показує "~X BTC" еквівалент.
+    При введенні значення у поле Size платформа конвертує суму у BTC
+    і показує "~X BTC" еквівалент.
+
+    Примітка про новий UX (dex-dev.true.trading): на свіжо завантаженій
+    сторінці текст "~0 BTC" БІЛЬШЕ не показується (на старому домені
+    показувався). BTC equivalent з'являється тільки після введення
+    ненульового значення. Тест адаптовано: перевіряємо тільки появу
+    BTC equivalent після введення.
     """
     authenticated_trading_page.open()
-
-    # Стартовий стан: ~0 BTC видно (поле Size порожнє)
-    expect(authenticated_trading_page.size_btc_equivalent).to_be_visible()
-    expect(authenticated_trading_page.size_btc_equivalent).to_have_text("~0 BTC")
-
     # Вводимо 100 USDC у поле Size
     authenticated_trading_page.fill_size("100")
-
-    # Значення BTC еквіваленту змінилось
+    # BTC equivalent з'явився і показує НЕ-нульове значення
+    expect(authenticated_trading_page.size_btc_equivalent).to_be_visible()
     expect(authenticated_trading_page.size_btc_equivalent).not_to_have_text("~0 BTC")
