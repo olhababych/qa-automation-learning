@@ -41,7 +41,12 @@ class TradingPage(BasePage):
 
         # Авторизований стан
         # Баланс у header, формат "$0.00", "$1,234.56", тощо
-        self.header_balance: Locator = page.get_by_text(re.compile(r"^\$[\d,]+\.\d{2}$"))
+        # На новому домені у header'і з'явилось друге $X.XX число (ціна BTC) —
+        # використовуємо .first як толерантний smoke-check на наявність будь-якого
+        # балансоподібного числа в header'і у автентифікованому стані.
+        self.header_balance: Locator = page.get_by_text(
+            re.compile(r"^\$[\d,]+\.\d{2}$")
+        ).first
 
         # Action button (змінюється залежно від Long/Short селектора)
         self.buy_long_button: Locator = page.get_by_role("button", name="Buy / Long")
@@ -268,3 +273,25 @@ class TradingPage(BasePage):
 
         # Крок 4: чекаємо реального закриття позиції на платформі
         expect(self.no_positions_text).to_be_visible(timeout=10_000)
+
+
+    def get_long_position_margin(self) -> float:
+        """Прочитати поточне значення Margin у Long-позиції BTCUSDC.
+
+        Чекає, поки клітинка покаже число у форматі "X.XX" (не плейсхолдер
+        типу "—" або "0"), потім парсить у float. Це критично для тестів
+        netting-моделі, де треба порівнювати margin до/після зміни позиції.
+
+        Затримка появи реального значення — до 5 секунд (беремо 10 для запасу).
+
+        Raises:
+            ValueError: якщо текст не парситься як float (несподіваний формат UI).
+        """
+        # Чекаємо, поки текст у клітинці буде числом, а не плейсхолдером.
+        # Regex ловить формат "4.11", "10.05", etc — два знаки після коми
+        # (так платформа форматує margin).
+        expect(self.long_position_margin).to_have_text(
+            re.compile(r"^\d+\.\d+$"), timeout=10_000
+        )
+        margin_text = self.long_position_margin.inner_text()
+        return float(margin_text)
