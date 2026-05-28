@@ -83,6 +83,22 @@ class TradingPage(BasePage):
         self.positions_tab_generic: Locator = page.locator("button").filter(
             has_text=re.compile(r"^Positions \(\d+\)$")
         )
+
+        # Margin у таблиці позицій — 7-ма колонка (індекс 6) у grid-рядку.
+        # Якір — img[alt='long' або 'short'] унікально визначає рядок позиції;
+        # h-14 розрізняє рядок позиції від header'а (h-7).
+        # Стійко до зміни ціни BTC (бо це live-значення), але крихко до зміни
+        # порядку колонок у таблиці. TODO: ask FE team for data-testid.
+        self.long_position_margin: Locator = (
+            page.locator("img[alt='long']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(6)
+        )
+        self.short_position_margin: Locator = (
+            page.locator("img[alt='short']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(6)
+        )
         
         # Leverage селектор і модалка
         self.leverage_button: Locator = page.get_by_role("button", name="50x")
