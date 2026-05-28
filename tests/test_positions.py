@@ -112,3 +112,50 @@ def test_open_long_position_creates_position(
         # Teardown: закриваємо позицію незалежно від результату assertion'ів.
         # Це гарантує, що тест не залишить стан для наступних запусків.
         page.close_position()
+
+       
+def test_opposite_position_with_same_size_closes_position(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо netting-модель: відкриття протилежної позиції такого ж
+    розміру закриває оригінальну, а не створює другу.
+
+    Сценарій:
+    1. Стартовий стан — позицій немає.
+    2. Відкриваємо Long на POSITION_SIZE_USDC.
+    3. Перевіряємо, що з'явилась позиція (Positions (1)).
+    4. Відкриваємо Short на ту саму суму (POSITION_SIZE_USDC).
+    5. Перевіряємо, що netting спрацював:
+       - лічильник Positions (0)
+       - текст "No open positions" знов видимий
+
+    БЕЗ cleanup-фікстури: якщо netting спрацював, позиції вже немає
+    і закривати нічого. Якщо тест впав на середині — закривайте позицію
+    вручну на платформі перед наступним запуском.
+
+    Це свідомий компроміс: спрощує тест ціною ризику "брудного" стану
+    при failure. Виправдане, бо netting — це і є те, що ми тестуємо.
+    """
+    page = authenticated_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий.
+    expect(page.no_positions_text).to_be_visible()
+
+    # Дія 1: відкрити Long на тестову суму
+    page.open_long_position(POSITION_SIZE_USDC)
+
+    # Sanity check: позиція з'явилась перед спробою netting
+    expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+    # Дія 2: відкрити Short на ту саму суму — має спрацювати netting
+    page.open_short_position(POSITION_SIZE_USDC)
+
+    # Головна перевірка №1: лічильник повернувся на (0)
+    expect(page.positions_tab_generic).to_have_text(
+        "Positions (0)", timeout=POSITION_TIMEOUT_MS
+    )
+
+    # Головна перевірка №2: текст "No open positions" знов видимий
+    expect(page.no_positions_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
