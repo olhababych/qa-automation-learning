@@ -295,3 +295,36 @@ class TradingPage(BasePage):
         )
         margin_text = self.long_position_margin.inner_text()
         return float(margin_text)
+    
+
+    def wait_for_long_position_margin_change(self, from_value: float) -> float:
+        """Чекає, поки margin Long-позиції зміниться відносно from_value,
+        і повертає нове значення як float.
+
+        Використовується після дій, які повинні змінити позицію (наприклад,
+        netting через Short). Без очікування читання margin одразу після
+        кліку може повернути старе значення, бо UI ще не оновився —
+        Playwright бачить попередній рядок таблиці у DOM, який ще не
+        перерендерився.
+
+        Реалізація використовує Playwright auto-retry через `expect`:
+        бібліотека сама повторює перевірку, поки текст не зміниться
+        або не сплине timeout.
+
+        Args:
+            from_value: попереднє значення margin, від якого чекаємо змін.
+
+        Returns:
+            Нове значення margin після зміни.
+
+        Raises:
+            AssertionError: якщо margin не змінився за 10 секунд.
+        """
+        # Формуємо текст у тому ж форматі, як платформа його показує
+        # (два знаки після коми — "4.11", "2.06").
+        previous_text = f"{from_value:.2f}"
+        expect(self.long_position_margin).not_to_have_text(
+            previous_text, timeout=10_000
+        )
+        new_text = self.long_position_margin.inner_text()
+        return float(new_text)
