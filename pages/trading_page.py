@@ -191,6 +191,67 @@ class TradingPage(BasePage):
         """Збільшити leverage на 1 (натискання плюс-кнопки у модалці)."""
         self.leverage_modal_increase.click()
 
+    def set_leverage(self, target: int) -> None:
+        """Встановити конкретне значення leverage через модалку.
+
+        Відкриває модалку, циклічно клікає +/- до досягнення target,
+        перевіряє нове значення після кожного кліку через expect (Playwright
+        auto-retry), потім Confirm.
+
+        Безпека:
+        - target має бути в діапазоні [1, 50] (max_leverage за конфігом ринку)
+        - safety counter — захист від нескінченного циклу, якщо UI зламається
+        - перевірка значення через expect.to_have_text після кожного кліку
+          гарантує, що клік реально зареєструвався
+
+        Args:
+            target: цільове значення leverage (1-50).
+
+        Raises:
+            ValueError: target поза дозволеним діапазоном.
+            AssertionError: якщо UI не оновився після кліку.
+        """
+        if not 1 <= target <= 50:
+            raise ValueError(
+                f"Leverage target must be between 1 and 50, got {target}"
+            )
+
+        self.open_leverage_modal()
+        expect(self.leverage_modal_value).to_be_visible(timeout=5_000)
+
+        # Парсимо поточне значення з тексту "x50" → 50
+        current_text = self.leverage_modal_value.inner_text()
+        current = int(current_text.lstrip("x"))
+
+        # Safety counter: max 60 ітерацій (більше за max_leverage=50 для запасу)
+        max_iterations = 60
+        iterations = 0
+
+        while current != target:
+            if iterations >= max_iterations:
+                raise AssertionError(
+                    f"set_leverage exceeded {max_iterations} iterations. "
+                    f"Stuck at {current}, target {target}."
+                )
+
+            if current < target:
+                self.leverage_modal_increase.click()
+                current += 1
+            else:
+                self.leverage_modal_decrease.click()
+                current -= 1
+
+            # Перевіряємо, що UI реально оновився після кліку.
+            # Без цього клік міг не зареєструватись, а ми думаємо, що так.
+            expected_text = f"x{current}"
+            expect(self.leverage_modal_value).to_have_text(
+                expected_text, timeout=2_000
+            )
+            iterations += 1
+
+        # Застосувати зміну
+        self.leverage_modal_confirm.click()
+
 
     def open_deposit_modal(self) -> None:
         """Відкрити модалку Deposit."""
