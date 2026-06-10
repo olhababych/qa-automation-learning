@@ -227,3 +227,61 @@ def test_open_short_reduces_long_position(
     finally:
         # Teardown: закриваємо залишок позиції
         page.close_position()
+
+
+def test_close_position_modal_cancel_keeps_position_open(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо, що Cancel у модалці підтвердження закриття залишає позицію
+    відкритою.
+
+    Це окрема перевірка від test_close_position_via_ui_button: там ми
+    тестуємо, що Confirm у модалці реально закриває позицію. Тут — що
+    Cancel НЕ закриває (тобто модалка — функціональна, а не декоративна).
+
+    Сценарій:
+    1. Стартовий стан — позицій немає.
+    2. Відкриваємо Long на POSITION_SIZE_USDC.
+    3. Клікаємо "Close position" біля позиції → модалка з'являється.
+    4. Перевіряємо, що в модалці видно: заголовок, кнопка Cancel, кнопка
+       Close position (confirm).
+    5. Клікаємо Cancel → модалка зникає, позиція залишається.
+    6. Cleanup у finally: закриваємо позицію (на цей раз через Confirm).
+
+    Захист цього тесту: якщо платформа повернеться до instant-close без
+    модалки, тест впаде на кроці 4 — і ми одразу побачимо, що поведінка
+    змінилась.
+    """
+    page = authenticated_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Підготовка: відкрити Long, на якому будемо тестувати модалку
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Дія: клік на маленьку кнопку Close position біля позиції
+        page.close_position_button.click()
+
+        # Перевірка №1: модалка з'явилась з усіма очікуваними елементами
+        expect(page.close_position_modal_heading).to_be_visible(timeout=5_000)
+        expect(page.close_position_modal_cancel).to_be_visible()
+        expect(page.close_position_modal_confirm).to_be_visible()
+
+        # Дія: клік Cancel → модалка має зникнути
+        page.close_position_modal_cancel.click()
+
+        # Перевірка №2: модалка зникла
+        expect(page.close_position_modal_heading).not_to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+
+        # Перевірка №3: позиція досі відкрита (Cancel НЕ закрив її)
+        expect(page.positions_tab_with_one).to_be_visible()
+    finally:
+        # Teardown: закриваємо позицію по-справжньому
+        page.close_position() 
