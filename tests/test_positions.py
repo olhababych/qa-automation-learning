@@ -285,3 +285,75 @@ def test_close_position_modal_cancel_keeps_position_open(
     finally:
         # Teardown: закриваємо позицію по-справжньому
         page.close_position() 
+
+
+def test_open_long_position_with_min_leverage(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо коректну роботу платформи на мінімальному leverage (1x).
+
+    Edge case: leverage 1x — це край діапазону (max_leverage=50 за конфігом
+    ринку, min не зафіксовано). При 1x margin = notional, тобто весь
+    введений Size фактично "заморожується" як забезпечення.
+
+    Сценарій:
+    1. Pre-condition: позицій немає, leverage 50x (default).
+    2. Встановлюємо leverage = 1.
+    3. Відкриваємо Long на POSITION_SIZE_USDC.
+    4. Перевіряємо універсальну формулу: margin / Size ≈ 1/leverage (±10%).
+       Для leverage 1x: margin ≈ Size (тобто margin / 200 ≈ 1.0).
+    5. Cleanup у finally:
+       - закрити позицію
+       - повернути leverage на 50x (default для інших тестів)
+
+    Запас ±10% покриває:
+    - округлення BTC equivalent (FE bug — round-half-up на BTC)
+    - природну зміну ціни BTC між кліками
+    - комісії
+    """
+    page = authenticated_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Підготовка: встановити leverage = 1
+        page.set_leverage(1)
+
+        # Дія: відкрити Long на тестову суму при 1x leverage
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо margin відкритої позиції
+        margin = page.get_long_position_margin()
+
+        # Перевірка універсальної формули: margin / Size ≈ 1 / leverage
+        # Для 1x → ratio = 1.0
+        size_usdc = float(POSITION_SIZE_USDC)
+        expected_ratio = 1.0 / 1  # leverage = 1
+        actual_ratio = margin / size_usdc
+        tolerance = expected_ratio * 0.1  # ±10%
+
+        assert abs(actual_ratio - expected_ratio) <= tolerance, (
+            f"Margin/Size ratio at leverage 1x is {actual_ratio:.3f}, "
+            f"expected {expected_ratio:.3f} ±{tolerance:.3f}. "
+            f"Margin: ${margin}, Size: ${size_usdc}. "
+            f"Difference: {abs(actual_ratio - expected_ratio):.3f}."
+        )
+    finally:
+        # Teardown: окремі try/except для кожної дії, щоб помилка в одній
+        # не блокувала іншу. Це критично, бо нам ОБОВ'ЯЗКОВО повернути
+        # leverage на 50x — інакше всі наступні тести працюватимуть з 1x
+        # і їх assertions впадуть з неочікуваним margin у 50 разів більшим.
+        try:
+            page.close_position()
+        except Exception as close_error:
+            # Логуємо, але не падаємо — далі треба повернути leverage
+            print(f"Warning: close_position failed in teardown: {close_error}")
+
+        try:
+            page.set_leverage(50)
+        except Exception as leverage_error:
+            print(f"Warning: set_leverage(50) failed in teardown: {leverage_error}")
