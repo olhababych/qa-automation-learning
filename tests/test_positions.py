@@ -357,3 +357,74 @@ def test_open_long_position_with_min_leverage(
             page.set_leverage(50)
         except Exception as leverage_error:
             print(f"Warning: set_leverage(50) failed in teardown: {leverage_error}")
+
+
+def test_open_long_position_with_mid_leverage(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Sanity check: перевіряємо коректну роботу платформи на проміжному
+    leverage (20x).
+
+    Edge case типу "посередині діапазону" — не крайній мінімум (1x — тест A)
+    і не дефолтний максимум (50x — який вже опосередковано покритий іншими
+    тестами позицій). Цей тест ловить теоретичні баги, коли FE хардкодить
+    обчислення тільки для крайніх значень.
+
+    При leverage 20x: margin = notional / 20. Для Size $200 → margin ≈ $10.
+
+    Сценарій:
+    1. Pre-condition: позицій немає, leverage 50x (default).
+    2. Встановлюємо leverage = 20.
+    3. Відкриваємо Long на POSITION_SIZE_USDC.
+    4. Перевіряємо універсальну формулу: margin / Size ≈ 1/leverage (±10%).
+       Для leverage 20x: ratio = 0.05.
+    5. Cleanup у finally:
+       - закрити позицію
+       - повернути leverage на 50x (default для інших тестів)
+
+    Запас ±10% покриває округлення BTC equivalent, природну зміну ціни BTC
+    між кліками, і комісії.
+    """
+    page = authenticated_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Підготовка: встановити leverage = 20
+        page.set_leverage(20)
+
+        # Дія: відкрити Long на тестову суму при 20x leverage
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо margin відкритої позиції
+        margin = page.get_long_position_margin()
+
+        # Перевірка універсальної формули: margin / Size ≈ 1 / leverage
+        # Для 20x → ratio = 0.05
+        size_usdc = float(POSITION_SIZE_USDC)
+        expected_ratio = 1.0 / 20  # leverage = 20
+        actual_ratio = margin / size_usdc
+        tolerance = expected_ratio * 0.1  # ±10%
+
+        assert abs(actual_ratio - expected_ratio) <= tolerance, (
+            f"Margin/Size ratio at leverage 20x is {actual_ratio:.4f}, "
+            f"expected {expected_ratio:.4f} ±{tolerance:.4f}. "
+            f"Margin: ${margin}, Size: ${size_usdc}. "
+            f"Difference: {abs(actual_ratio - expected_ratio):.4f}."
+        )
+    finally:
+        # Teardown: окремі try/except, як у тесті A.
+        # Критично повернути leverage на 50x, бо це default для інших тестів.
+        try:
+            page.close_position()
+        except Exception as close_error:
+            print(f"Warning: close_position failed in teardown: {close_error}")
+
+        try:
+            page.set_leverage(50)
+        except Exception as leverage_error:
+            print(f"Warning: set_leverage(50) failed in teardown: {leverage_error}")            
