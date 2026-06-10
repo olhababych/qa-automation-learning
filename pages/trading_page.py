@@ -81,6 +81,12 @@ class TradingPage(BasePage):
             "button", has_text="Close position"
         ).last
 
+        # Кнопка Cancel у модалці підтвердження закриття позиції.
+        # exact=True щоб не зачепити інші можливі "Cancel ..." кнопки.
+        self.close_position_modal_cancel: Locator = page.get_by_role(
+            "button", name="Cancel", exact=True
+        )
+
         # Positions tab counter — динамічний, змінюється з 0 на 1, 2 і т.д.
         # positions_tab_with_one для перевірки появи позиції після Buy/Long
         # positions_tab_generic — універсальний, для перевірок через to_have_text
