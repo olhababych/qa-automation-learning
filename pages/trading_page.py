@@ -112,7 +112,13 @@ class TradingPage(BasePage):
         )
         
         # Leverage селектор і модалка
-        self.leverage_button: Locator = page.get_by_role("button", name="50x")
+        # Кнопка показує поточний leverage у форматі "Nx" (1x, 20x, 50x тощо).
+        # Regex дозволяє знайти її незалежно від поточного значення —
+        # критично для тестів, які міняють leverage (вони лишають кнопку у
+        # стані, відмінному від default 50x, на час cleanup).
+        self.leverage_button: Locator = page.get_by_role(
+            "button", name=re.compile(r"^\d+x$")
+        )
         self.leverage_modal_heading: Locator = page.get_by_text("Adjust BTCUSDC Leverage")
         self.leverage_modal_close: Locator = page.get_by_role("button", name="Close", exact=True)
         self.leverage_modal_confirm: Locator = page.get_by_role("button", name="Confirm")
@@ -195,21 +201,26 @@ class TradingPage(BasePage):
         """Встановити конкретне значення leverage через модалку.
 
         Відкриває модалку, циклічно клікає +/- до досягнення target,
-        перевіряє нове значення після кожного кліку через expect (Playwright
-        auto-retry), потім Confirm.
+        читаючи актуальне значення з UI після кожного кліку, потім Confirm.
+
+        Чому читаємо UI замість локального counter'а: платформа іноді
+        пропускає кліки (race condition у обробці input'ів). Якщо локально
+        рахувати "клікнув мінус = -1", лічильник розходиться з реальним
+        UI станом. Читаючи UI, ми завжди знаємо точний стан.
 
         Безпека:
         - target має бути в діапазоні [1, 50] (max_leverage за конфігом ринку)
-        - safety counter — захист від нескінченного циклу, якщо UI зламається
-        - перевірка значення через expect.to_have_text після кожного кліку
-          гарантує, що клік реально зареєструвався
+        - safety counter — захист від нескінченного циклу
+        - якщо клік не змінив значення UI, expect.not_to_have_text
+          падає з timeout — це сигнал, що платформа ігнорує кліки
 
         Args:
             target: цільове значення leverage (1-50).
 
         Raises:
             ValueError: target поза дозволеним діапазоном.
-            AssertionError: якщо UI не оновився після кліку.
+            AssertionError: якщо UI не оновився після кліку (платформа
+                пропустила натискання) або перевищено max ітерацій.
         """
         if not 1 <= target <= 50:
             raise ValueError(
@@ -219,33 +230,37 @@ class TradingPage(BasePage):
         self.open_leverage_modal()
         expect(self.leverage_modal_value).to_be_visible(timeout=5_000)
 
-        # Парсимо поточне значення з тексту "x50" → 50
-        current_text = self.leverage_modal_value.inner_text()
-        current = int(current_text.lstrip("x"))
-
         # Safety counter: max 60 ітерацій (більше за max_leverage=50 для запасу)
         max_iterations = 60
         iterations = 0
 
-        while current != target:
+        while True:
             if iterations >= max_iterations:
                 raise AssertionError(
                     f"set_leverage exceeded {max_iterations} iterations. "
-                    f"Stuck at {current}, target {target}."
+                    f"Target {target}, never reached."
                 )
+
+            # Читаємо актуальний стан UI — це джерело правди, не локальний counter
+            current_text = self.leverage_modal_value.inner_text()
+            current = int(current_text.lstrip("x"))
+
+            if current == target:
+                break
+
+            # Запам'ятовуємо текст до кліку, щоб дочекатися зміни
+            previous_text = current_text
 
             if current < target:
                 self.leverage_modal_increase.click()
-                current += 1
             else:
                 self.leverage_modal_decrease.click()
-                current -= 1
 
-            # Перевіряємо, що UI реально оновився після кліку.
-            # Без цього клік міг не зареєструватись, а ми думаємо, що так.
-            expected_text = f"x{current}"
-            expect(self.leverage_modal_value).to_have_text(
-                expected_text, timeout=2_000
+            # Чекаємо, поки UI **зміниться** з previous_text.
+            # Якщо клік пропущено платформою — текст не зміниться, expect
+            # впаде з timeout. Це сигнал реального bug'а, не помилки тесту.
+            expect(self.leverage_modal_value).not_to_have_text(
+                previous_text, timeout=3_000
             )
             iterations += 1
 
