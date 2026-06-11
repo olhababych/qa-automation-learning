@@ -4,6 +4,7 @@ from typing import Generator
 import pytest
 from playwright.sync_api import Page, Browser, BrowserContext
 from pages.trading_page import TradingPage
+from pages.sol_trading_page import SolTradingPage
 
 
 AUTH_STATE_FILE = Path(__file__).parent.parent / "auth_state.json"
@@ -75,3 +76,15 @@ def authenticated_page(
 def authenticated_trading_page(authenticated_page: Page) -> TradingPage:
     """TradingPage з авторизованою сесією — для тестів торгівлі."""
     return TradingPage(authenticated_page)
+
+
+@pytest.fixture
+def sol_trading_page(page: Page) -> SolTradingPage:
+    """Фікстура для SOL/USDC тестів без авторизації (guest state)."""
+    return SolTradingPage(page)
+
+
+@pytest.fixture
+def authenticated_sol_trading_page(authenticated_page: Page) -> SolTradingPage:
+    """SolTradingPage з авторизованою сесією — для тестів торгівлі на SOL/USDC."""
+    return SolTradingPage(authenticated_page)

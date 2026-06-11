@@ -1,0 +1,424 @@
+"""
+Тести керування позиціями на платформі TrueFinance.
+
+ВАЖЛИВО про netting-модель платформи:
+- Long $100 + Long $100 → Long $200 (накопичення)
+- Long $100 + Short $50 → Long $50 (часткове закриття)
+- Long $100 + Short $100 → 0 позицій (повне закриття)
+
+ВАЖЛИВО про cleanup:
+- На момент написання cleanup-фікстури немає (свідоме рішення для MVP).
+- Якщо тест падає посередині — закривайте позиції вручну на платформі
+  перед наступним запуском.
+"""
+from playwright.sync_api import expect
+
+from pages.sol_trading_page import SolTradingPage
+
+
+# Затримка появи/закриття позиції в UI — спостерігалось до 5 секунд.
+# Беремо 10 секунд для запасу на повільну мережу.
+# Timeout для дій, що залежать від бекенду (відкриття/закриття позицій,
+# отримання position state). Dev-платформа іноді повільна, тому
+# беремо запас — 20 секунд замість дефолтних 10.
+POSITION_TIMEOUT_MS = 20_000
+
+# Мінімальний робочий розмір позиції для тестів.
+# Конфіг ринку: min_order_notional = $100, але FE робить round-half-up
+# на BTC equivalent, через що ордери близько до $100 відхиляються бекендом
+# (~50% випадків, детерміновано від поточної ціни BTC).
+# Bug зафіксовано — до фіксу використовуємо $200 як стабільну суму.
+POSITION_SIZE_USDC = "200"
+
+def test_close_position_via_ui_button(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо, що кнопка Close position закриває відкриту позицію.
+
+    Сценарій:
+    1. Стартовий стан — позицій немає (Positions (0) + "No open positions").
+    2. Відкриваємо Long $100.
+    3. Чекаємо появи позиції (Positions (1)).
+    4. Клікаємо Close position.
+    5. Перевіряємо cleanup через два незалежні індикатори:
+       - текст "No open positions"
+       - лічильник Positions (0)
+
+    Примітка про UX: на платформі НЕМАЄ confirmation модалки при Close —
+    клік закриває позицію одразу. Це задокументовано як потенційний UX-баг.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий.
+    # Якщо assertion впаде тут — означає, що залишились незакриті позиції
+    # з попередніх запусків. Треба закрити вручну на платформі.
+    expect(page.no_positions_text).to_be_visible()
+
+    # Дія 1: відкрити Long $100
+    page.open_long_position("200")
+
+    # Перевірка появи позиції
+    expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+    # Дія 2: закрити позицію через UI-кнопку
+    page.close_position()
+
+    # Cleanup-перевірка через два незалежні індикатори
+    expect(page.no_positions_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+    expect(page.positions_tab_generic).to_have_text(
+        "Positions (0)", timeout=POSITION_TIMEOUT_MS
+    )
+
+
+def test_open_long_position_creates_position(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо, що відкриття Long-позиції створює запис у таблиці позицій.
+
+    Сценарій:
+    1. Стартовий стан — позицій немає (текст "No open positions" видимий).
+    2. Відкриваємо Long $100.
+    3. Перевіряємо появу позиції через два незалежні індикатори:
+       - вкладка змінилась на "Positions (1)"
+       - текст "No open positions" зник з UI
+    4. Cleanup: закриваємо створену позицію через try/finally,
+       щоб не залишити стан для наступних тестів.
+
+    Cleanup у finally гарантує закриття позиції навіть при failure
+    assertions. Це окрема дія від assertion'ів — teardown, не верифікація.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий.
+    # Якщо assertion впаде тут — означає, що залишились незакриті позиції
+    # з попередніх запусків. Треба закрити вручну на платформі.
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Дія: відкрити Long $100
+        page.open_long_position("200")
+
+        # Перевірка №1: лічильник позицій оновився
+        expect(page.positions_tab_with_one).to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+
+        # Перевірка №2: текст "No open positions" зник
+        expect(page.no_positions_text).not_to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+    finally:
+        # Teardown: закриваємо позицію незалежно від результату assertion'ів.
+        # Це гарантує, що тест не залишить стан для наступних запусків.
+        page.close_position()
+
+
+def test_opposite_position_with_same_size_closes_position(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо netting-модель: відкриття протилежної позиції такого ж
+    розміру в USDC закриває Long-позицію.
+
+    Платформа підтримує два валідних результати netting:
+    - "No open positions" — повне закриття (BTC сценарій)
+    - мікро-залишок Short з малою кількістю SOL (SOL сценарій через
+      volatility ціни між Long і Short)
+
+    Тест перевіряє суть netting: Long-позиція більше не існує.
+    Не перевіряємо точні margin/Size — це деталі реалізації; тут важлива
+    бізнес-логіка: користувач закрив свою Long через Short.
+
+    Сценарій:
+    1. Стартовий стан — позицій немає.
+    2. Відкриваємо Long $200 → з'являється img[alt='long'] у таблиці.
+    3. Відкриваємо Short $200 → img[alt='long'] зникає.
+    4. Cleanup у finally: якщо залишився мікро-Short — закриваємо.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Дія 1: відкрити Long
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Sanity check: Long дійсно з'явилась у таблиці
+        long_indicator = page.page.get_by_role("img", name="long")
+        expect(long_indicator).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Дія 2: відкрити Short — має спрацювати netting
+        page.open_short_position(POSITION_SIZE_USDC)
+
+        # Головна перевірка: Long більше не існує в таблиці позицій.
+        # Це доводить, що netting відбувся: або позиція повністю закрилась
+        # ("No open positions"), або залишився мікро-Short (volatility tail).
+        expect(long_indicator).not_to_be_visible(timeout=POSITION_TIMEOUT_MS)
+    finally:
+        # Cleanup: якщо залишився мікро-Short — закриваємо, щоб наступний
+        # тест мав чистий старт. Якщо позиції немає (BTC сценарій) —
+        # пропускаємо.
+        if not page.no_positions_text.is_visible():
+            try:
+                page.close_position()
+            except Exception:
+                pass
+
+
+def test_open_short_reduces_long_position(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо netting-модель: відкриття Short меншого розміру зменшує
+    Long-позицію, але не закриває її повністю.
+
+    Сценарій:
+    1. Стартовий стан — позицій немає.
+    2. Відкриваємо Long $200 → margin ≈ $4.00 (BTC ціна × 4).
+    3. Відкриваємо Short $100 (половина від Long).
+    4. Netting: залишається Long $100 → margin ≈ $2.00.
+    5. Перевіряємо, що margin зменшився приблизно вдвічі (±10%).
+
+    Запас ±10% покриває:
+    - округлення BTC equivalent (FE bug — див. round-half-up bug report)
+    - природну зміну ціни BTC між кліками (зазвичай < 1%)
+    - комісії
+
+    Cleanup у finally: після успішного netting залишається Long $100 —
+    закриваємо її через close_position(). Якщо тест впав на середині
+    (наприклад, перший Long не пройшов через FE bug), finally однаково
+    спробує close_position — це безпечно, бо метод закриває першу видиму.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Дія 1: відкриваємо Long $200
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо margin початкової Long-позиції
+        margin_before = page.get_long_position_margin()
+
+        # Дія 2: відкриваємо Short на половину розміру — спрацьовує netting
+        page.open_short_position(str(int(POSITION_SIZE_USDC) // 2))
+
+       # Sanity check: позиція все ще існує (Positions (1)),
+        # netting НЕ закрив її повністю
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо margin після netting — чекаємо ЗМІНИ значення в UI,
+        # бо одразу після кліку Sell/Short таблиця ще показує старий рядок.
+        # Без очікування зміни тест читає margin_before (старе) знов і assertion
+        # падає з "margin не змінився".
+        margin_after = page.wait_for_long_position_margin_change(
+            from_value=margin_before
+        )
+
+        # Головна перевірка: margin зменшився приблизно вдвічі
+        expected_margin = margin_before / 2
+        tolerance = expected_margin * 0.1  # ±10%
+        assert abs(margin_after - expected_margin) <= tolerance, (
+            f"Margin after Short netting ({margin_after}) is not within ±10% "
+            f"of expected ({expected_margin:.2f}). "
+            f"Margin before: {margin_before}. "
+            f"Difference: {abs(margin_after - expected_margin):.2f}, "
+            f"tolerance: ±{tolerance:.2f}."
+        )
+    finally:
+        # Teardown: закриваємо залишок позиції
+        page.close_position()
+
+
+def test_close_position_modal_cancel_keeps_position_open(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо, що Cancel у модалці підтвердження закриття залишає позицію
+    відкритою.
+
+    Це окрема перевірка від test_close_position_via_ui_button: там ми
+    тестуємо, що Confirm у модалці реально закриває позицію. Тут — що
+    Cancel НЕ закриває (тобто модалка — функціональна, а не декоративна).
+
+    Сценарій:
+    1. Стартовий стан — позицій немає.
+    2. Відкриваємо Long на POSITION_SIZE_USDC.
+    3. Клікаємо "Close position" біля позиції → модалка з'являється.
+    4. Перевіряємо, що в модалці видно: заголовок, кнопка Cancel, кнопка
+       Close position (confirm).
+    5. Клікаємо Cancel → модалка зникає, позиція залишається.
+    6. Cleanup у finally: закриваємо позицію (на цей раз через Confirm).
+
+    Захист цього тесту: якщо платформа повернеться до instant-close без
+    модалки, тест впаде на кроці 4 — і ми одразу побачимо, що поведінка
+    змінилась.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Підготовка: відкрити Long, на якому будемо тестувати модалку
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Дія: клік на маленьку кнопку Close position біля позиції
+        page.close_position_button.click()
+
+        # Перевірка №1: модалка з'явилась з усіма очікуваними елементами
+        expect(page.close_position_modal_heading).to_be_visible(timeout=5_000)
+        expect(page.close_position_modal_cancel).to_be_visible()
+        expect(page.close_position_modal_confirm).to_be_visible()
+
+        # Дія: клік Cancel → модалка має зникнути
+        page.close_position_modal_cancel.click()
+
+        # Перевірка №2: модалка зникла
+        expect(page.close_position_modal_heading).not_to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+
+        # Перевірка №3: позиція досі відкрита (Cancel НЕ закрив її)
+        expect(page.positions_tab_with_one).to_be_visible()
+    finally:
+        # Teardown: закриваємо позицію по-справжньому
+        page.close_position() 
+
+
+def test_open_long_position_with_min_leverage(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо коректну роботу платформи на мінімальному leverage (1x).
+
+    Edge case: leverage 1x — це край діапазону (max_leverage=50 за конфігом
+    ринку, min не зафіксовано). При 1x margin = notional, тобто весь
+    введений Size фактично "заморожується" як забезпечення.
+
+    Сценарій:
+    1. Pre-condition: позицій немає, leverage 50x (default).
+    2. Встановлюємо leverage = 1.
+    3. Відкриваємо Long на POSITION_SIZE_USDC.
+    4. Перевіряємо універсальну формулу: margin / Size ≈ 1/leverage (±10%).
+       Для leverage 1x: margin ≈ Size (тобто margin / 200 ≈ 1.0).
+    5. Cleanup у finally:
+       - закрити позицію
+       - повернути leverage на 50x (default для інших тестів)
+
+    Запас ±10% покриває:
+    - округлення BTC equivalent (FE bug — round-half-up на BTC)
+    - природну зміну ціни BTC між кліками
+    - комісії
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Підготовка: встановити leverage = 1
+        page.set_leverage(1)
+
+        # Дія: відкрити Long на тестову суму при 1x leverage
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо margin відкритої позиції
+        margin = page.get_long_position_margin()
+
+        # Перевірка універсальної формули: margin / Size ≈ 1 / leverage
+        # Для 1x → ratio = 1.0
+        size_usdc = float(POSITION_SIZE_USDC)
+        expected_ratio = 1.0 / 1  # leverage = 1
+        actual_ratio = margin / size_usdc
+        tolerance = expected_ratio * 0.1  # ±10%
+
+        assert abs(actual_ratio - expected_ratio) <= tolerance, (
+            f"Margin/Size ratio at leverage 1x is {actual_ratio:.3f}, "
+            f"expected {expected_ratio:.3f} ±{tolerance:.3f}. "
+            f"Margin: ${margin}, Size: ${size_usdc}. "
+            f"Difference: {abs(actual_ratio - expected_ratio):.3f}."
+        )
+    finally:
+        # Teardown: тільки close_position. Leverage НЕ повертаємо на 50:
+        # платформа сама скидає leverage на 50x при перезавантаженні сторінки
+        # (page.open() на старті кожного тесту робить це автоматично).
+        page.close_position()
+
+
+def test_open_long_position_with_mid_leverage(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Sanity check: перевіряємо коректну роботу платформи на проміжному
+    leverage (20x).
+
+    Edge case типу "посередині діапазону" — не крайній мінімум (1x — тест A)
+    і не дефолтний максимум (50x — який вже опосередковано покритий іншими
+    тестами позицій). Цей тест ловить теоретичні баги, коли FE хардкодить
+    обчислення тільки для крайніх значень.
+
+    При leverage 20x: margin = notional / 20. Для Size $200 → margin ≈ $10.
+
+    Сценарій:
+    1. Pre-condition: позицій немає, leverage 50x (default).
+    2. Встановлюємо leverage = 20.
+    3. Відкриваємо Long на POSITION_SIZE_USDC.
+    4. Перевіряємо універсальну формулу: margin / Size ≈ 1/leverage (±10%).
+       Для leverage 20x: ratio = 0.05.
+    5. Cleanup у finally:
+       - закрити позицію
+       - повернути leverage на 50x (default для інших тестів)
+
+    Запас ±10% покриває округлення BTC equivalent, природну зміну ціни BTC
+    між кліками, і комісії.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Підготовка: встановити leverage = 20
+        page.set_leverage(20)
+
+        # Дія: відкрити Long на тестову суму при 20x leverage
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо margin відкритої позиції
+        margin = page.get_long_position_margin()
+
+        # Перевірка універсальної формули: margin / Size ≈ 1 / leverage
+        # Для 20x → ratio = 0.05
+        size_usdc = float(POSITION_SIZE_USDC)
+        expected_ratio = 1.0 / 20  # leverage = 20
+        actual_ratio = margin / size_usdc
+        tolerance = expected_ratio * 0.1  # ±10%
+
+        assert abs(actual_ratio - expected_ratio) <= tolerance, (
+            f"Margin/Size ratio at leverage 20x is {actual_ratio:.4f}, "
+            f"expected {expected_ratio:.4f} ±{tolerance:.4f}. "
+            f"Margin: ${margin}, Size: ${size_usdc}. "
+            f"Difference: {abs(actual_ratio - expected_ratio):.4f}."
+        )
+    finally:
+        # Teardown: тільки close_position. Leverage НЕ повертаємо на 50:
+        # платформа сама скидає leverage на 50x при перезавантаженні сторінки
+        # (page.open() на старті кожного тесту робить це автоматично).
+        page.close_position() 
