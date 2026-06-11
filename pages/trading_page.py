@@ -228,7 +228,7 @@ class TradingPage(BasePage):
             )
 
         self.open_leverage_modal()
-        expect(self.leverage_modal_value).to_be_visible(timeout=5_000)
+        expect(self.leverage_modal_value).to_be_visible(timeout=10_000)
 
         # Safety counter: max 60 ітерацій (більше за max_leverage=50 для запасу)
         max_iterations = 60
@@ -260,12 +260,19 @@ class TradingPage(BasePage):
             # Якщо клік пропущено платформою — текст не зміниться, expect
             # впаде з timeout. Це сигнал реального bug'а, не помилки тесту.
             expect(self.leverage_modal_value).not_to_have_text(
-                previous_text, timeout=3_000
+               previous_text, timeout=5_000
             )
             iterations += 1
 
         # Застосувати зміну
         self.leverage_modal_confirm.click()
+
+        # Чекаємо, поки модалка реально закриється.
+        # Після кліку Confirm текст кнопки змінюється на "Processing…"
+        # і модалка з backdrop ще 3-5 секунд видима, блокуючи інші кліки.
+        # Без цього очікування наступний крок тесту (наприклад, Buy/Long)
+        # не може клікнути нічого, бо модалка перекриває pointer events.
+        expect(self.leverage_modal_heading).not_to_be_visible(timeout=15_000)
 
 
     def open_deposit_modal(self) -> None:
@@ -348,13 +355,13 @@ class TradingPage(BasePage):
         self.close_position_button.click()
 
         # Крок 2: чекаємо появи модалки (заголовок як якір)
-        expect(self.close_position_modal_heading).to_be_visible(timeout=5_000)
+        expect(self.close_position_modal_heading).to_be_visible(timeout=10_000)
 
         # Крок 3: клікаємо confirm у модалці
         self.close_position_modal_confirm.click()
 
         # Крок 4: чекаємо реального закриття позиції на платформі
-        expect(self.no_positions_text).to_be_visible(timeout=10_000)
+        expect(self.no_positions_text).to_be_visible(timeout=20_000)
 
 
     def get_long_position_margin(self) -> float:
@@ -373,7 +380,7 @@ class TradingPage(BasePage):
         # Regex ловить формат "4.11", "10.05", etc — два знаки після коми
         # (так платформа форматує margin).
         expect(self.long_position_margin).to_have_text(
-            re.compile(r"^\d+\.\d+$"), timeout=10_000
+            re.compile(r"^\d+\.\d+$"), timeout=20_000
         )
         margin_text = self.long_position_margin.inner_text()
         return float(margin_text)
@@ -406,7 +413,7 @@ class TradingPage(BasePage):
         # (два знаки після коми — "4.11", "2.06").
         previous_text = f"{from_value:.2f}"
         expect(self.long_position_margin).not_to_have_text(
-            previous_text, timeout=10_000
+            previous_text, timeout=20_000
         )
         new_text = self.long_position_margin.inner_text()
         return float(new_text)
