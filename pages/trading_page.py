@@ -179,6 +179,28 @@ class TradingPage(BasePage):
         self.short_tab.click()
 
 
+    def _wait_for_stable_btc_equivalent(self) -> None:
+        """Чекати, поки BTC-еквівалент під полем Size стане стабільним.
+
+        Проблема: після fill_size UI оновлює "~X BTC" в декілька етапів —
+        спочатку платформа підраховує приблизно, потім уточнює за оракулом.
+        Якщо клікнути Buy/Long між цими оновленнями, платформа отримує
+        запит зі застарілим Size і повертає "fail quantity" або
+        "Order notional below minimum".
+
+        Стратегія: читати текст до 10 разів з паузою 500мс, шукати два
+        однакові послідовні значення (UI стабілізувався). Якщо за 5 секунд
+        не стабілізувалось — виходимо тихо, нехай платформа сама розбирається
+        (краще ніж блокувати тест нескінченно).
+        """
+        last_text = ""
+        for _ in range(10):
+            current = self.size_btc_equivalent.inner_text()
+            if current == last_text and current.startswith("~"):
+                return
+            last_text = current
+            self.page.wait_for_timeout(500)
+
     def open_leverage_modal(self) -> None:
         """Відкрити модалку зміни leverage."""
         self.leverage_button.click()
@@ -312,6 +334,9 @@ class TradingPage(BasePage):
         expect(self.size_btc_equivalent).to_have_text(
             re.compile(r"^~0\.\d+\s+BTC$"), timeout=5_000
         )
+        # Додаткова стабілізація — чекаємо, поки UI перестане оновлювати
+        # BTC-еквівалент (зазвичай ~1 сек після першої появи).
+        self._wait_for_stable_btc_equivalent()
         self.buy_long_button.click()
         
         
@@ -334,6 +359,8 @@ class TradingPage(BasePage):
         expect(self.size_btc_equivalent).to_have_text(
             re.compile(r"^~0\.\d+\s+BTC$"), timeout=5_000
         )
+        # Додаткова стабілізація — див. коментар у open_long_position.
+        self._wait_for_stable_btc_equivalent()
         self.sell_short_button.click()
 
 
