@@ -294,7 +294,12 @@ class SolTradingPage(BasePage):
         # і модалка з backdrop ще 3-5 секунд видима, блокуючи інші кліки.
         # Без цього очікування наступний крок тесту (наприклад, Buy/Long)
         # не може клікнути нічого, бо модалка перекриває pointer events.
-        expect(self.leverage_modal_heading).not_to_be_visible(timeout=15_000)
+        # Чекаємо, поки backdrop (півпрозорий чорний overlay) зникне.
+        # Текст заголовка модалки зникає швидше, ніж backdrop, тож якщо
+        # чекати на heading — Playwright продовжить роботу, поки backdrop
+        # ще блокує всі pointer events. Чекаємо на сам backdrop.
+        backdrop = self.page.locator("div.bg-black\\/60.backdrop-blur-xs")
+        expect(backdrop).not_to_be_visible(timeout=15_000)
 
 
     def open_deposit_modal(self) -> None:
@@ -379,7 +384,7 @@ class SolTradingPage(BasePage):
         Затримка закриття — до 5 секунд (беремо 10 для запасу).
         """
         # Крок 1: клікаємо маленьку кнопку біля позиції — відкриває модалку
-        self.close_position_button.click()
+        self.close_position_button.click(timeout=60_000)
 
         # Крок 2: чекаємо появи модалки (заголовок як якір)
         expect(self.close_position_modal_heading).to_be_visible(timeout=10_000)
