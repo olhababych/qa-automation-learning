@@ -111,6 +111,15 @@ class TradingPage(BasePage):
             .locator("> div").nth(6)
         )
         
+        # Size позиції — 4-та колонка таблиці (Direction, Asset, Leverage, SIZE, ...).
+        # Розмір у BTC (наприклад, "0.0031"). На відміну від margin, Size не змінюється
+        # при зміні leverage — це фіксована кількість токенів у позиції.
+        self.long_position_size: Locator = (
+            page.locator("img[alt='long']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(3)
+        )
+
         # Leverage селектор і модалка
         # Кнопка показує поточний leverage у форматі "Nx" (1x, 20x, 50x тощо).
         # Regex дозволяє знайти її незалежно від поточного значення —
@@ -417,7 +426,29 @@ class TradingPage(BasePage):
         margin_text = self.long_position_margin.inner_text()
         return float(margin_text)
     
+    
+    def get_long_position_size(self) -> float:
+        """Прочитати поточне значення Size у Long-позиції BTCUSDC.
 
+        Size — це кількість BTC у позиції (наприклад, "0.0031"). На відміну
+        від margin, Size НЕ змінюється при зміні leverage — це фіксована
+        кількість токенів. Використовується у тестах, які перевіряють
+        збереження розміру позиції при операціях типу зміни leverage.
+
+        Затримка появи значення — до 20 секунд (для повільного dev-бекенду).
+
+        Raises:
+            ValueError: якщо текст не парситься як float.
+        """
+        # Чекаємо, поки текст у клітинці буде числом у форматі "0.0031"
+        # (BTC має дробову частину з різною кількістю знаків).
+        expect(self.long_position_size).to_have_text(
+            re.compile(r"^\d+\.\d+$"), timeout=20_000
+        )
+        size_text = self.long_position_size.inner_text()
+        return float(size_text)
+
+   
     def wait_for_long_position_margin_change(self, from_value: float) -> float:
         """Чекає, поки margin Long-позиції зміниться відносно from_value,
         і повертає нове значення як float.

@@ -11,8 +11,8 @@
 - Якщо тест падає посередині — закривайте позиції вручну на платформі
   перед наступним запуском.
 """
+import pytest
 from playwright.sync_api import expect
-
 from pages.trading_page import TradingPage
 
 
@@ -414,3 +414,93 @@ def test_open_long_position_with_mid_leverage(
         # платформа сама скидає leverage на 50x при перезавантаженні сторінки
         # (page.open() на старті кожного тесту робить це автоматично).
         page.close_position() 
+
+
+@pytest.mark.xfail(
+    reason=(
+        "Bug платформи: при відкритті позиції в автотесті leverage у "
+        "таблиці позицій не відповідає тосту 'Lev 50×' — позиція "
+        "відкривається з leverage 10 замість 50. Margin не рекалькулюється "
+        "при зміні leverage. Чекаємо фіксу від FE команди."
+    ),
+    strict=False,
+)
+def test_changing_leverage_recalculates_margin_on_open_position(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо, що зміна leverage на ВІДКРИТІЙ позиції рекалькулює margin
+    на платформі, при цьому розмір позиції (Size у BTC) залишається тим самим.
+
+    Це ключова фіча margin trading: користувач може динамічно змінювати
+    leverage без закриття позиції. Платформа має:
+    - перерахувати margin за формулою: margin_new = margin_old × (lev_old / lev_new)
+    - зберегти Size BTC незмінним (це фіксована кількість токенів)
+
+    Сценарій:
+    1. Pre-condition: позицій немає, leverage 50x (default).
+    2. Відкриваємо Long $200 при leverage 50 → margin ≈ $4.
+    3. Читаємо margin_before і size_before.
+    4. Змінюємо leverage з 50 на 10 (зменшуємо в 5 разів).
+    5. Чекаємо оновлення margin у UI.
+    6. Перевіряємо:
+       - margin виріс приблизно в 5 разів (margin × old_lev / new_lev),
+       - Size BTC не змінився.
+    7. Cleanup у finally: закрити позицію.
+
+    Запас ±10% на margin покриває природну зміну ціни BTC між кліками
+    (зміна leverage займає кілька секунд, BTC ціна змінюється).
+    """
+    page = authenticated_trading_page
+    page.open()
+
+    # Pre-condition: стартовий стан чистий
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Дія 1: відкрити Long $200 при дефолтному leverage 50
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Читаємо стартовий стан позиції
+        margin_before = page.get_long_position_margin()
+        size_before = page.get_long_position_size()
+        leverage_before = 50
+        leverage_after = 10
+
+        # Дія 2: змінити leverage на відкритій позиції з 50 на 10
+        page.set_leverage(leverage_after)
+
+        # Чекаємо, поки UI оновить margin (платформа рекалькулює асинхронно).
+        # Без очікування читання margin одразу після set_leverage може повернути
+        # старе значення, бо рядок таблиці ще не перерендерився.
+        margin_after = page.wait_for_long_position_margin_change(
+            from_value=margin_before
+        )
+        size_after = page.get_long_position_size()
+
+        # Перевірка №1: margin рекалькулювався згідно формули
+        # margin_new = margin_old × (leverage_old / leverage_new)
+        expected_margin = margin_before * (leverage_before / leverage_after)
+        tolerance = expected_margin * 0.1  # ±10% на зміну ціни BTC
+        assert abs(margin_after - expected_margin) <= tolerance, (
+            f"Margin after leverage change ({margin_after}) is not within ±10% "
+            f"of expected ({expected_margin:.2f}). "
+            f"Before: margin={margin_before}, leverage={leverage_before}. "
+            f"After: leverage={leverage_after}. "
+            f"Difference: {abs(margin_after - expected_margin):.2f}, "
+            f"tolerance: ±{tolerance:.2f}."
+        )
+
+        # Перевірка №2: розмір позиції (Size BTC) не змінився
+        # Це фіксована кількість токенів, leverage на неї не впливає.
+        assert size_before == size_after, (
+            f"Position size changed after leverage update: "
+            f"before={size_before} BTC, after={size_after} BTC. "
+            f"Size має залишатися незмінним при зміні leverage."
+        )
+    finally:
+        # Teardown: закрити позицію.
+        # Leverage НЕ повертаємо на 50: page.open() на старті наступного тесту
+        # робить reload, який скидає leverage на 50x автоматично.
+        page.close_position()
