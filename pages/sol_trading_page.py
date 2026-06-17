@@ -55,7 +55,18 @@ class SolTradingPage(BasePage):
         # Перемикач напрямку угоди (Long/Short селектор)
         self.long_tab: Locator = page.get_by_role("button", name="Long", exact=True)
         self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
-
+        self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
+        # Reduce Only checkbox — обмежує ордер до зменшення/закриття позиції.
+        # Реалізовано як checkbox у формі ордера (під полем Size).
+        self.reduce_only_checkbox: Locator = page.get_by_role(
+            "checkbox", name="Reduce Only"
+        )
+        # Тост помилки Reduce Only — з'являється при спробі збільшити позицію
+        # з увімкненим Reduce Only.
+        self.reduce_only_error_toast: Locator = page.get_by_text(
+            "Reduce-only order cannot increase position size"
+        )
+        # Фінансові операції
         # Фінансові операції
         self.deposit_button: Locator = page.get_by_role("button", name="Deposit")
         self.withdraw_button: Locator = page.get_by_role("button", name="Withdraw")
@@ -187,6 +198,21 @@ class SolTradingPage(BasePage):
         """Перемкнути напрямок угоди на Short."""
         self.short_tab.click()
 
+    def enable_reduce_only(self) -> None:
+        """Увімкнути чекбокс Reduce Only у формі ордера.
+
+        Reduce Only обмежує ордер: він може тільки зменшити/закрити позицію,
+        але не може її збільшити чи відкрити нову. Якщо клікнути ордер
+        з увімкненим Reduce Only коли позиція збільшується — платформа
+        відхиляє ордер з тостом помилки.
+
+        Метод використовує check() замість click() — він ідемпотентний:
+        якщо чекбокс уже увімкнений, повторний виклик не вимкне його.
+        """
+        self.reduce_only_checkbox.check(force=True)
+        # Sanity check: чекбокс реально увімкнений (платформа іноді ігнорує клік
+        # на disabled state, наприклад коли немає позиції на ринку).
+        expect(self.reduce_only_checkbox).to_be_checked(timeout=5_000)
 
     def _wait_for_stable_sol_equivalent(self) -> None:
         """Чекати, поки SOL-еквівалент під полем Size стане стабільним.

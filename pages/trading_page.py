@@ -55,7 +55,18 @@ class TradingPage(BasePage):
         # Перемикач напрямку угоди (Long/Short селектор)
         self.long_tab: Locator = page.get_by_role("button", name="Long", exact=True)
         self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
-
+        self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
+        # Reduce Only checkbox — обмежує ордер до зменшення/закриття позиції.
+        # Реалізовано як checkbox у формі ордера (під полем Size).
+        self.reduce_only_checkbox: Locator = page.get_by_role(
+            "checkbox", name="Reduce Only"
+        )
+        # Тост помилки Reduce Only — з'являється при спробі збільшити позицію
+        # з увімкненим Reduce Only.
+        self.reduce_only_error_toast: Locator = page.get_by_text(
+            "Reduce-only order cannot increase position size"
+        )
+        # Фінансові операції
         # Фінансові операції
         self.deposit_button: Locator = page.get_by_role("button", name="Deposit")
         self.withdraw_button: Locator = page.get_by_role("button", name="Withdraw")
@@ -187,7 +198,25 @@ class TradingPage(BasePage):
         """Перемкнути напрямок угоди на Short."""
         self.short_tab.click()
 
+    def enable_reduce_only(self) -> None:
+        """Увімкнути чекбокс Reduce Only у формі ордера.
 
+        Reduce Only обмежує ордер: він може тільки зменшити/закрити позицію,
+        але не може її збільшити чи відкрити нову. Якщо клікнути ордер
+        з увімкненим Reduce Only коли позиція збільшується — платформа
+        відхиляє ордер з тостом помилки.
+
+        Чому force=True: чекбокс реалізований як кастомний Tailwind компонент,
+        де <input type="checkbox"> прихований класом 'sr-only peer', а видимий
+        <span> поверх нього перехоплює pointer events. Playwright не може
+        клікнути прихований input напряму — використовуємо force=True для
+        обходу actionability check. Стан чекбоксу все одно змінюється коректно.
+        """
+        self.reduce_only_checkbox.check(force=True)
+        # Sanity check: чекбокс реально увімкнений
+        expect(self.reduce_only_checkbox).to_be_checked(timeout=5_000)
+
+        
     def _wait_for_stable_btc_equivalent(self) -> None:
         """Чекати, поки BTC-еквівалент під полем Size стане стабільним.
 
@@ -426,7 +455,7 @@ class TradingPage(BasePage):
         margin_text = self.long_position_margin.inner_text()
         return float(margin_text)
     
-    
+
     def get_long_position_size(self) -> float:
         """Прочитати поточне значення Size у Long-позиції BTCUSDC.
 
