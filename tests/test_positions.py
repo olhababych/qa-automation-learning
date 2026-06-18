@@ -547,3 +547,51 @@ def test_open_short_position_creates_position(
         )
     finally:
         page.close_position()
+
+
+def test_short_larger_than_long_flips_position_direction(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо netting flip: відкриття Short БІЛЬШОГО розміру за існуючу
+    Long-позицію перевертає її у Short.
+
+    Сценарій:
+    1. Pre-condition: позицій немає.
+    2. Відкриваємо Long $200 (margin ≈ $4).
+    3. Відкриваємо Short $400 (вдвічі більше).
+    4. Netting: Long закривається ПОВНІСТЮ, залишається Short $200.
+    5. Перевіряємо:
+       - позиція все ще існує (Positions (1)),
+       - напрямок змінився з Long на Short.
+
+    Цей тест доповнює test_open_short_reduces_long_position (Short меншого
+    розміру) і test_opposite_position_with_same_size_closes_position
+    (Short того ж розміру). Тут перевіряємо граничний кейс реверсу напрямку.
+
+    ВАЖЛИВО: без Reduce Only платформа дозволяє реверс — це нормальна
+    netting-логіка. З Reduce Only такий Short був би відхилений
+    (це покрито test_reduce_only_blocks_position_increase).
+    """
+    page = authenticated_trading_page
+    page.open()
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        # Дія 1: відкрити Long $200
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Дія 2: відкрити Short $400 — перевертає позицію
+        page.open_short_position(str(int(POSITION_SIZE_USDC) * 2))
+
+        # Перевірка №1: позиція все ще існує (Positions (1))
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Перевірка №2: напрямок став Short
+        # Чекаємо появи Short-індикатора (зникнення Long-індикатора зайве,
+        # бо у DOM може на мить бути обидва під час netting).
+        short_indicator = page.page.get_by_role("img", name="short")
+        expect(short_indicator).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+    finally:
+        page.close_position()

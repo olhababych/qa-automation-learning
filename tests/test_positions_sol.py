@@ -536,3 +536,31 @@ def test_open_short_position_creates_position(
         )
     finally:
         page.close_position()
+
+
+def test_short_larger_than_long_flips_position_direction(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо netting flip для SOL: Short БІЛЬШОГО розміру перевертає
+    Long-позицію у Short.
+
+    Аналог BTC-тесту. Перевіряє граничний кейс реверсу напрямку
+    через netting на SOL ринку.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        page.open_long_position(POSITION_SIZE_USDC)
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        page.open_short_position(str(int(POSITION_SIZE_USDC) * 2))
+
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        short_indicator = page.page.get_by_role("img", name="short")
+        expect(short_indicator).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+    finally:
+        page.close_position()
