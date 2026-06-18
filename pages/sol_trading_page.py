@@ -85,6 +85,12 @@ class SolTradingPage(BasePage):
         self.reduce_only_error_toast: Locator = page.get_by_text(
             "Reduce-only order cannot increase position size"
         )
+        # Toast помилки — з'являється коли notional ордера менший за мінімум
+        # платформи ($100 на тестовому середовищі). Виникає при ціні = 0
+        # або при занадто малому Size.
+        self.order_notional_below_minimum_toast: Locator = page.get_by_text(
+            "Order notional below minimum"
+        )
         # Фінансові операції
         # Фінансові операції
         self.deposit_button: Locator = page.get_by_role("button", name="Deposit")
