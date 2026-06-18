@@ -221,6 +221,54 @@ class TradingPage(BasePage):
         )
         self.withdraw_modal_close: Locator = page.get_by_role("button",name="Close", exact=True)
 
+        # Amount input у модалках Deposit/Withdraw — textbox з placeholder "0".
+        # Беремо .last — коли модалка відкрита, її input йде ПІСЛЯ price/size
+        # input'ів форми ордера.
+        # Amount input у модалках Deposit/Withdraw — input БЕЗ placeholder.
+        # Скоупимо через сусідній текст subtitle модалки, щоб НЕ зачепити
+        # textbox'и форми ордера (Price, Size).
+        # Amount input модалки Deposit — input з атрибутом name="amount".
+        # Унікальний у DOM, точніший за пошук через сусідні тексти.
+        self.deposit_amount_input: Locator = page.locator("input[name='amount']")
+        # Amount input модалки Withdraw — НЕ має name="amount" (на відміну від
+        # Deposit). Скоупимо через xpath після тексту "Withdrawable" — він
+        # унікальний для цієї модалки.
+        self.withdraw_amount_input: Locator = page.locator(
+            "xpath=//*[contains(text(), 'Withdrawable')]/following::input[not(@type='checkbox')][1]"
+        )
+
+        # Кнопка Deposit ВСЕРЕДИНІ модалки (не плутати з deposit_button у sidebar,
+        # який відкриває модалку). Беремо .last — у DOM кнопка модалки йде пізніше.
+        # Кнопка Deposit ВСЕРЕДИНІ модалки. У DOM є ще одна "Deposit" кнопка
+        # у sidebar — для відкриття модалки. Модальна кнопка з'являється ПІСЛЯ
+        # у DOM, але .last не працює (sidebar кнопка перехоплюється overlay).
+        # Розрізнюємо за класом модальної кнопки (повна ширина, w-full).
+        self.deposit_modal_submit: Locator = page.locator(
+            "button.w-full"
+        ).filter(has_text="Deposit").first
+        self.withdraw_modal_submit: Locator = page.locator(
+            "button.w-full"
+        ).filter(has_text="Withdraw").first
+
+        # Балансові тексти у модалках.
+        # Avail. зустрічається і у формі ордера, тому обмежуємо до dialog scope.
+        # Avail. зустрічається у формі ордера і у Deposit модалці.
+        # У модалці він йде ПЕРШИМ (модалка рендериться у portal, до форми),
+        # тому використовуємо .first — простіше і надійніше за scope-фільтри.
+        self.deposit_available_balance: Locator = page.get_by_text("Avail.").first
+        self.withdraw_available_balance: Locator = page.get_by_text("Withdrawable")
+
+        # Текст inline-валідації — з'являється під полем Amount, коли значення
+        # невалідне (0, нижче мінімуму, тощо). Платформа НЕ блокує submit кнопку,
+        # а показує цей текст замість цього.
+        self.invalid_amount_error: Locator = page.get_by_text("Enter a valid amount")
+        # Помилка для Withdraw — з'являється коли сума нижче мінімуму (1 USDC).
+        # Окремий від invalid_amount_error патерн: платформа використовує
+        # різні тексти помилки для різних випадків.
+        self.below_minimum_withdrawal_error: Locator = page.get_by_text(
+            "Minimum withdrawal is 1 USDC"
+        )
+
 
     def open(self) -> None:
         """Відкрити сторінку торгівлі BTCUSDC."""
