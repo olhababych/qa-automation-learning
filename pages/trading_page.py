@@ -6,7 +6,7 @@ from pages.base_page import BasePage
 class TradingPage(BasePage):
     """Page Object для сторінки торгівлі BTCUSDC."""
 
-    URL = "https://dex-dev.true.trading/trading/BTCUSDC"
+    URL = "https://beta-dex.truefinance.ai/trading/BTCUSDC"
 
     def __init__(self, page: Page):
         super().__init__(page)
@@ -102,7 +102,7 @@ class TradingPage(BasePage):
             re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
         ).first
 
-        ## Position close — на новому домені dex-dev.true.trading з'явилась
+        ## Position close — на новому домені beta-dex.truefinance.ai з'явилась
         # confirmation модалка (на старому домені її не було). Закриття тепер
         # двоетапне: клік "Close position" біля позиції → модалка → confirm.
         # Маленька кнопка на самій позиції (відкриває модалку):
@@ -277,8 +277,31 @@ class TradingPage(BasePage):
 
 
     def open(self) -> None:
-        """Відкрити сторінку торгівлі BTCUSDC."""
+        """Відкрити сторінку торгівлі BTCUSDC.
+
+        Після reload скидає leverage на 50 (default), якщо потрібно. Це
+        захищає тести від просочення стану між собою: на beta домені
+        leverage persistує через reload, на відміну від dev. Тести які
+        міняли leverage могли б залишити його у нестандартному стані.
+        """
         super().open(self.URL)
+        self._reset_leverage_to_default()
+
+    def _reset_leverage_to_default(self) -> None:
+        """Скинути leverage на 50 якщо потрібно.
+
+        Читає поточний leverage з кнопки (текст "50x", "20x", тощо).
+        Якщо вже 50 — нічого не робить (fast path).
+        Якщо інше — викликає set_leverage(50).
+        """
+        try:
+            current = self.leverage_button.inner_text(timeout=5_000)
+            if current.strip() != "50x":
+                self.set_leverage(50)
+        except Exception:
+            # Якщо кнопка ще не з'явилась (наприклад, сторінка ще завантажується),
+            # тихо пропускаємо — наступний step тесту все одно впаде на конкретній дії.
+            pass
 
     def click_sign_in(self) -> None:
         """Клікнути по Sign In для відкриття auth-модалки."""
@@ -602,7 +625,7 @@ class TradingPage(BasePage):
     def close_position(self) -> None:
         """Закрити першу відкриту позицію через двоетапний UI-флоу.
 
-        На новому домені dex-dev.true.trading з'явилась confirmation
+        На новому домені beta-dex.truefinance.ai з'явилась confirmation
         модалка: клік на "Close position" біля позиції відкриває модалку
         з підтвердженням, де треба клікнути другу "Close position".
 

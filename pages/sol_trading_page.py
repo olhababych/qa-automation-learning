@@ -6,7 +6,7 @@ from pages.base_page import BasePage
 class SolTradingPage(BasePage):
     """Page Object для сторінки торгівлі BTCUSDC."""
 
-    URL = "https://dex-dev.true.trading/trading/SOLUSDC"
+    URL = "https://beta-dex.truefinance.ai/trading/SOLUSDC"
 
     def __init__(self, page: Page):
         super().__init__(page)
@@ -101,7 +101,7 @@ class SolTradingPage(BasePage):
             re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
         ).first
 
-        ## Position close — на новому домені dex-dev.true.trading з'явилась
+        ## Position close — на новому домені beta-dex.truefinance.ai з'явилась
         # confirmation модалка (на старому домені її не було). Закриття тепер
         # двоетапне: клік "Close position" біля позиції → модалка → confirm.
         # Маленька кнопка на самій позиції (відкриває модалку):
@@ -211,8 +211,22 @@ class SolTradingPage(BasePage):
 
 
     def open(self) -> None:
-        """Відкрити сторінку торгівлі BTCUSDC."""
+        """Відкрити сторінку торгівлі SOLUSDC.
+
+        Після reload скидає leverage на 50 (default), якщо потрібно. Це
+        захищає тести від просочення стану між собою.
+        """
         super().open(self.URL)
+        self._reset_leverage_to_default()
+
+    def _reset_leverage_to_default(self) -> None:
+        """Скинути leverage на 50 якщо потрібно."""
+        try:
+            current = self.leverage_button.inner_text(timeout=5_000)
+            if current.strip() != "50x":
+                self.set_leverage(50)
+        except Exception:
+            pass
 
     def click_sign_in(self) -> None:
         """Клікнути по Sign In для відкриття auth-модалки."""
@@ -541,7 +555,7 @@ class SolTradingPage(BasePage):
     def close_position(self) -> None:
         """Закрити першу відкриту позицію через двоетапний UI-флоу.
 
-        На новому домені dex-dev.true.trading з'явилась confirmation
+        На новому домені beta-dex.truefinance.ai з'явилась confirmation
         модалка: клік на "Close position" біля позиції відкриває модалку
         з підтвердженням, де треба клікнути другу "Close position".
 
