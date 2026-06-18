@@ -26,3 +26,4 @@ venv/
 auth_state.json
 # Browser extensions (Phantom etc)
 extensions/
+reports/
