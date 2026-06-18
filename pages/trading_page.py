@@ -33,6 +33,11 @@ class TradingPage(BasePage):
         # Поле розміру позиції (TODO: ask FE team for data-testid)
         #.first використовуємо, бо placeholder="0" може бути на кількох полях
         self.size_input: Locator = page.get_by_placeholder("0").first
+        # Size input у Limit-режимі — другий textbox (перший це Price).
+        # У Market-режимі використовуємо size_input (перший).
+        self.size_input_limit: Locator = page.locator(
+            "input[placeholder='0']"
+        ).nth(1)
 
         # Динамічний розрахунок BTC еквіваленту, формат "~0 BTC", "~0.00128 BTC"
         self.size_btc_equivalent: Locator = page.get_by_text(
@@ -55,7 +60,28 @@ class TradingPage(BasePage):
         # Перемикач напрямку угоди (Long/Short селектор)
         self.long_tab: Locator = page.get_by_role("button", name="Long", exact=True)
         self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
-        self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
+        # Тип ордера — combobox у формі (зверху, поряд з leverage).
+        # Платформа використовує <combobox>, не звичайний <button>.
+        self.order_type_combobox: Locator = page.get_by_role("combobox").first
+
+        # Опція "Limit" у дропдауні — з'являється після кліку на combobox.
+        self.limit_order_option: Locator = page.get_by_role(
+            "option", name="Limit"
+        )
+        # Поле ціни — з'являється тільки при виборі Limit. Має placeholder "0".
+        # Локатор унікалізується тим, що Price input — єдиний textbox з лейблом Price.
+        # Поле Price — це textbox з placeholder "0", без accessible name.
+        # Той самий placeholder використовує і Size, тому беремо .first —
+        # Price input з'являється першим у DOM (вище за Size) коли вибрано Limit.
+        # Поле Price — це textbox з placeholder "0", без accessible name.
+        # У Limit-режимі це перший textbox у формі (Size — другий).
+        # У Market-режимі поля Price немає взагалі, тому price_input
+        # використовується ТІЛЬКИ у Limit-флоу.
+        self.price_input: Locator = page.locator(
+            "input[placeholder='0']"
+        ).nth(0)
+        # Текст "No open orders" — плейсхолдер коли таблиця ордерів порожня.
+        self.no_orders_text: Locator = page.get_by_text("No open orders")
         # Reduce Only checkbox — обмежує ордер до зменшення/закриття позиції.
         # Реалізовано як checkbox у формі ордера (під полем Size).
         self.reduce_only_checkbox: Locator = page.get_by_role(
@@ -97,6 +123,31 @@ class TradingPage(BasePage):
         self.close_position_modal_cancel: Locator = page.get_by_role(
             "button", name="Cancel", exact=True
         )
+
+        # Cancel order модалка — двоетапний flow (як close_position).
+        # Заголовок "Cancel order?" з'являється після кліку × у рядку ордера.
+        self.cancel_order_modal_heading: Locator = page.get_by_text("Cancel order?")
+        # Confirm кнопка — "Cancel order" (червона), exact=True щоб НЕ зачепити
+        # сам heading "Cancel order?" чи поле тосту з тим самим текстом.
+        # Confirm кнопка — велика червона "Cancel order" у модалці.
+        # Має клас `bg-active-red` — на платформі це єдиний елемент з таким класом.
+        # Confirm кнопка модалки — велика червона "Cancel order".
+        # Sell/Short теж має клас bg-active-red, тому фільтруємо за текстом.
+        self.cancel_order_modal_confirm: Locator = page.locator(
+            "button.bg-active-red"
+        ).filter(has_text="Cancel order")
+        # Cancel order у рядку ордера — червоний × біля кожного ордера в таблиці.
+        # Знайдемо першу видиму — у тестах буде тільки один ордер.
+        # У DOM це <button> з aria-label, але точний label треба буде перевірити.
+        # Поки використовуємо CSS-локатор через клас X icon у рядку ордера.
+        # Кнопка × у рядку ордера — має accessible name "Cancel order"
+        # (не плутати з кнопкою "Cancel order" у модалці підтвердження —
+        # вона з ОДНАКОВИМ ім'ям, тому беремо .first, бо у рядку йде раніше).
+        # Кнопка × у рядку ордера — використовуємо клас `hover:text-red-500`
+        # для розрізнення від модалки (там клас `bg-active-red`).
+        self.cancel_first_order_button: Locator = page.locator(
+            "button[aria-label='Cancel order'].hover\\:text-red-500"
+        ).first
 
         # Positions tab counter — динамічний, змінюється з 0 на 1, 2 і т.д.
         # positions_tab_with_one для перевірки появи позиції після Buy/Long
@@ -216,7 +267,7 @@ class TradingPage(BasePage):
         # Sanity check: чекбокс реально увімкнений
         expect(self.reduce_only_checkbox).to_be_checked(timeout=5_000)
 
-        
+
     def _wait_for_stable_btc_equivalent(self) -> None:
         """Чекати, поки BTC-еквівалент під полем Size стане стабільним.
 
@@ -406,6 +457,93 @@ class TradingPage(BasePage):
         self._wait_for_stable_btc_equivalent()
         self.sell_short_button.click()
 
+    def select_limit_order_type(self) -> None:
+        """Переключити тип ордера на Limit через combobox.
+
+        За замовчуванням платформа використовує Market — для Limit треба
+        явно вибрати у dropdown. Після переключення з'являється поле Price,
+        яке відсутнє в Market.
+
+        Метод ідемпотентний: якщо Limit уже вибрано, повторний виклик
+        нічого не зламає (другий клік просто закриє і знов відкриє dropdown).
+        """
+        self.order_type_combobox.click()
+        self.limit_order_option.click()
+        # Sanity check: поле Price з'явилось — значить Limit реально вибрано.
+        expect(self.price_input).to_be_visible(timeout=5_000)
+
+    def create_limit_long_order(self, price: str, size: str) -> None:
+        """Створити Limit Long ордер з заданою ціною та розміром у USDC.
+
+        Сценарій:
+        1. Перемкнути тип ордера на Limit.
+        2. Перемкнути напрямок на Long.
+        3. Ввести ціну (у форматі "60000" — без коми).
+        4. Ввести Size (у USDC).
+        5. Чекати, поки UI розрахує BTC-еквівалент.
+        6. Клікнути Buy / Long.
+
+        Ціну зазвичай задаємо НИЖЧЕ ринкової ціни (для Long) — щоб ордер
+        НЕ виконався одразу, а залишився відкритим у списку Orders.
+        Це дозволяє тестувати лайфцикл Limit-ордерів (створення, скасування)
+        без реальних угод.
+        """
+        self.select_limit_order_type()
+        self.select_long()
+        self.price_input.fill(price)
+        # У Limit-режимі size_input — другий textbox; fill_size() використовує
+        # перший, тому пишемо напряму у size_input_limit.
+        self.size_input_limit.fill(size)
+        # Чекаємо, поки UI відобразить НЕ-нульовий BTC-еквівалент
+        # (на платформі BTC-розрахунок асинхронний — див. _wait_for_stable_btc_equivalent).
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~0\.\d+\s+BTC$"), timeout=5_000
+        )
+        self._wait_for_stable_btc_equivalent()
+        self.buy_long_button.click()
+
+    def create_limit_short_order(self, price: str, size: str) -> None:
+        """Створити Limit Short ордер з заданою ціною та розміром у USDC.
+
+        Аналог create_limit_long_order для Short напрямку. Ціну зазвичай задаємо
+        ВИЩЕ ринкової — щоб ордер НЕ виконався одразу, а залишився у списку
+        Orders для тестування лайфциклу.
+        """
+        self.select_limit_order_type()
+        self.select_short()
+        self.price_input.fill(price)
+        # У Limit-режимі size_input — другий textbox (перший це Price).
+        self.size_input_limit.fill(size)
+        # Чекаємо, поки UI відобразить НЕ-нульовий BTC-еквівалент.
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~0\.\d+\s+BTC$"), timeout=5_000
+        )
+        self._wait_for_stable_btc_equivalent()
+        self.sell_short_button.click()
+
+    def cancel_first_order(self) -> None:
+        """Скасувати перший Limit-ордер у списку Orders через двоетапний UI-флоу.
+
+        На платформі скасування — двоетапний процес (як close_position):
+        1. Клік × у рядку ордера → відкриває модалку "Cancel order?"
+        2. Клік "Cancel order" (червона кнопка у модалці) → підтверджує
+
+        Метод чекає реального зникнення ордера зі списку перш ніж повернути
+        керування — це критично для використання як teardown у finally.
+
+        Затримка скасування — до 5 секунд на платформі, беремо 20 для запасу.
+        """
+        # Крок 1: клікаємо × біля ордера — відкриває confirmation модалку
+        self.cancel_first_order_button.click(timeout=60_000)
+
+        # Крок 2: чекаємо появи модалки
+        expect(self.cancel_order_modal_heading).to_be_visible(timeout=10_000)
+
+        # Крок 3: клікаємо confirm у модалці
+        self.cancel_order_modal_confirm.click()
+
+        # Крок 4: чекаємо реального зникнення ордера зі списку
+        expect(self.no_orders_text).to_be_visible(timeout=20_000)
 
     def close_position(self) -> None:
         """Закрити першу відкриту позицію через двоетапний UI-флоу.
