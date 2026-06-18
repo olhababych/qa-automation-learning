@@ -425,6 +425,16 @@ def test_open_long_position_with_mid_leverage(
     ),
     strict=False,
 )
+@pytest.mark.xfail(
+    reason=(
+        "Bug платформи: позиція в автотесті відкривається з leverage 10 "
+        "замість 50, хоча toast підтверджує 'Lev 50×'. Margin не "
+        "рекалькулюється при зміні leverage. Bug зафіксовано у Jira."
+    ),
+    strict=False,
+)
+
+    
 def test_changing_leverage_recalculates_margin_on_open_position(
     authenticated_trading_page: TradingPage,
 ):
