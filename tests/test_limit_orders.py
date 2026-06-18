@@ -144,3 +144,56 @@ def test_limit_long_with_zero_price_shows_notional_error(
     # Перевірка: ордер НЕ створено
     page.orders_tab.click()
     expect(page.no_orders_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+
+def test_limit_long_above_market_price_fills_immediately(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Limit Long з ціною ВИЩЕ ринку виконується одразу як Market.
+
+    Логіка: Limit Long означає "купити за ціною X або кращою (нижчою)".
+    Якщо X = $70000 при ринку $63000, умова вже задоволена — платформа
+    виконує ордер миттєво за ринковою ціною.
+
+    Сценарій:
+    1. Pre-condition: позицій 0, ордерів 0.
+    2. Створити Limit Long з ціною $70000 (вище ринку).
+    3. Перевірити:
+       - з'явилась позиція (Positions (1)),
+       - ордер НЕ залишився в Orders (No open orders).
+    4. Cleanup: закрити позицію.
+
+    ВАЖЛИВО: entry price у позиції буде РИНКОВИЙ, не $70000. Платформа
+    виконує за best available price, не за лімітом — це expected behavior.
+    """
+    page = authenticated_trading_page
+    page.open()
+
+    # Pre-condition: чистий стан. Якщо залишилась позиція з попереднього
+    # прогону — закриваємо її, аналогічно _ensure_no_orders для ордерів.
+    if not page.no_positions_text.is_visible():
+        page.close_position()
+    expect(page.no_positions_text).to_be_visible()
+    _ensure_no_orders(page)
+
+    try:
+        # Дія: Limit Long з ціною ВИЩЕ ринку — має виконатись одразу
+        page.create_limit_long_order(price="70000", size=POSITION_SIZE_USDC)
+
+        # Перевірка №1: з'явилась позиція
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Перевірка №2: ордер НЕ залишився в Orders
+        page.orders_tab.click()
+        expect(page.no_orders_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Перемикаємось назад на Positions для cleanup
+        page.positions_tab_with_one.click()
+    finally:
+        # Якщо позиція встигла закритись автоматично (наприклад через попередній
+        # cleanup), пропускаємо повторне закриття. Чекаємо до 3с щоб UI стабілізувався.
+        try:
+            expect(page.no_positions_text).to_be_visible(timeout=3_000)
+        except AssertionError:
+            page.close_position()

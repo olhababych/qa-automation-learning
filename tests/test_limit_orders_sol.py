@@ -140,3 +140,48 @@ def test_limit_long_with_zero_price_shows_notional_error(
     # Перевірка: ордер НЕ створено
     page.orders_tab.click()
     expect(page.no_orders_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+
+def test_limit_long_above_market_price_fills_immediately(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Limit Long з ціною ВИЩЕ ринку виконується одразу як Market для SOL.
+
+    Аналог BTC-тесту. Логіка платформи однакова: ціна ВИЩЕ ринку для Long
+    задовольняє умову одразу, тому ордер виконується миттєво.
+
+    ВАЖЛИВО про вибір ціни: $80 (а не $100) щоб SOL-еквівалент мав
+    десяткову частину (200 / 80 = 2.5 SOL). При ціні $100 виходить рівно
+    2 SOL без копійок, і регекс у create_limit_long_order падає на цьому
+    шаблоні. Це — обмеження методу, не bug платформи.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+
+    # Pre-condition: чистий стан
+    if not page.no_positions_text.is_visible():
+        page.close_position()
+    expect(page.no_positions_text).to_be_visible()
+    _ensure_no_orders(page)
+
+    try:
+        # Дія: Limit Long з ціною $80 (вище ринку ~$70, але дає десятковий
+        # SOL-еквівалент 200/80 = 2.5 SOL)
+        page.create_limit_long_order(price="80", size=POSITION_SIZE_USDC)
+
+        # Перевірка №1: з'явилась позиція
+        expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Перевірка №2: ордер НЕ залишився в Orders
+        page.orders_tab.click()
+        expect(page.no_orders_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+        # Перемикаємось назад на Positions для cleanup
+        page.positions_tab_with_one.click()
+    finally:
+        try:
+            if not page.no_positions_text.is_visible():
+                page.close_position()
+        except Exception:
+            pass
