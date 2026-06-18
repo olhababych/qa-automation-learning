@@ -146,3 +146,25 @@ def test_reduce_only_does_not_flip_position_direction(
     finally:
         # Teardown: закрити залишок Long
         page.close_position()
+
+
+def test_reduce_only_blocks_order_when_no_position_exists(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо, що Reduce Only ордер БЕЗ існуючої позиції відхиляється на SOL.
+
+    Аналог BTC-тесту. Логіка платформи однакова для обох ринків:
+    без позиції RO ордер не приймається.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+    expect(page.no_positions_text).to_be_visible()
+
+    page.select_long()
+    page.enable_reduce_only()
+    page.fill_size("200")
+    page.buy_long_button.click()
+
+    expect(page.reduce_only_error_toast).to_be_visible(timeout=10_000)
+    expect(page.no_positions_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)

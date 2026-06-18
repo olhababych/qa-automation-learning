@@ -146,3 +146,39 @@ def test_reduce_only_does_not_flip_position_direction(
     finally:
         # Teardown: закрити залишок Long
         page.close_position()
+
+
+def test_reduce_only_blocks_order_when_no_position_exists(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо, що Reduce Only ордер БЕЗ існуючої позиції відхиляється.
+
+    Логіка платформи: без позиції розмір = 0; будь-який RO ордер його
+    збільшить → блокується тостом "Reduce-only order cannot increase
+    position size".
+
+    Сценарій:
+    1. Pre-condition: позицій немає (No open positions).
+    2. Увімкнути Reduce Only.
+    3. Спробувати Long $200.
+    4. Перевірити: з'явився тост, позиція НЕ створена.
+
+    Цей тест доповнює test_reduce_only_blocks_position_increase: там
+    RO блокує ЗБІЛЬШЕННЯ існуючої позиції, тут — створення з нуля.
+    """
+    page = authenticated_trading_page
+    page.open()
+    expect(page.no_positions_text).to_be_visible()
+
+    # Дія: Long $200 з увімкненим Reduce Only БЕЗ існуючої позиції
+    page.select_long()
+    page.enable_reduce_only()
+    page.fill_size("200")
+    page.buy_long_button.click()
+
+    # Перевірка №1: з'явився тост-помилка
+    expect(page.reduce_only_error_toast).to_be_visible(timeout=10_000)
+
+    # Перевірка №2: позиція НЕ створилась
+    expect(page.no_positions_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
