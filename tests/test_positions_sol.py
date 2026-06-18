@@ -513,3 +513,26 @@ def test_changing_leverage_recalculates_margin_on_open_position(
         # Leverage НЕ повертаємо на 50: page.open() на старті наступного тесту
         # робить reload, який скидає leverage на 50x автоматично.
         page.close_position()
+
+def test_open_short_position_creates_position(
+    authenticated_sol_trading_page: SolTradingPage,
+):
+    """
+    Перевіряємо, що відкриття Short SOL-позиції створює запис у таблиці.
+
+    Аналог BTC-тесту. Тестує симетрію Long/Short флоу на SOL ринку.
+    """
+    page = authenticated_sol_trading_page
+    page.open()
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        page.open_short_position("200")
+        expect(page.positions_tab_with_one).to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+        expect(page.no_positions_text).not_to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+    finally:
+        page.close_position()

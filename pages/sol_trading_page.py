@@ -418,6 +418,19 @@ class SolTradingPage(BasePage):
         self._wait_for_stable_sol_equivalent()
         self.buy_long_button.click()
 
+    def open_short_position(self, size: str) -> None:
+        """Відкрити Short-позицію заданого розміру в USDC.
+
+        Аналог open_long_position, але для протилежного напрямку.
+        """
+        self.select_short()
+        self.fill_size(size)
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~\d+\.\d+\s+SOL$"), timeout=5_000
+        )
+        self._wait_for_stable_sol_equivalent()
+        self.sell_short_button.click()
+
     def create_limit_short_order(self, price: str, size: str) -> None:
         """Створити Limit Short ордер з заданою ціною та розміром у USDC.
 

@@ -514,3 +514,36 @@ def test_changing_leverage_recalculates_margin_on_open_position(
         # Leverage НЕ повертаємо на 50: page.open() на старті наступного тесту
         # робить reload, який скидає leverage на 50x автоматично.
         page.close_position()
+
+
+def test_open_short_position_creates_position(
+    authenticated_trading_page: TradingPage,
+):
+    """
+    Перевіряємо, що відкриття Short-позиції створює запис у таблиці позицій.
+
+    Аналог test_open_long_position_creates_position, але для протилежного
+    напрямку. Тестує симетрію базового флоу Long/Short.
+
+    Сценарій:
+    1. Pre-condition: позицій немає.
+    2. Відкриваємо Short $200.
+    3. Перевіряємо появу позиції через два індикатори:
+       - вкладка змінилась на "Positions (1)"
+       - текст "No open positions" зник
+    4. Cleanup у finally: закрити позицію.
+    """
+    page = authenticated_trading_page
+    page.open()
+    expect(page.no_positions_text).to_be_visible()
+
+    try:
+        page.open_short_position("200")
+        expect(page.positions_tab_with_one).to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+        expect(page.no_positions_text).not_to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
+    finally:
+        page.close_position()
