@@ -262,6 +262,12 @@ class TradingPage(BasePage):
         # невалідне (0, нижче мінімуму, тощо). Платформа НЕ блокує submit кнопку,
         # а показує цей текст замість цього.
         self.invalid_amount_error: Locator = page.get_by_text("Enter a valid amount")
+        # Toast помилки — з'являється коли notional ордера менший за мінімум
+        # платформи ($100 на тестовому середовищі). Виникає при ціні = 0
+        # або при занадто малому Size.
+        self.order_notional_below_minimum_toast: Locator = page.get_by_text(
+            "Order notional below minimum"
+        )
         # Помилка для Withdraw — з'являється коли сума нижче мінімуму (1 USDC).
         # Окремий від invalid_amount_error патерн: платформа використовує
         # різні тексти помилки для різних випадків.
