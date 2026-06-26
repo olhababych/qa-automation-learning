@@ -6,7 +6,7 @@ from pages.base_page import BasePage
 class SolTradingPage(BasePage):
     """Page Object для сторінки торгівлі BTCUSDC."""
 
-    URL = "https://beta-dex.truefinance.ai/trading/SOLUSDC"
+    URL = "https://dex-dev.true.trading/trading/SOLUSDC"
 
     def __init__(self, page: Page):
         super().__init__(page)
@@ -101,7 +101,7 @@ class SolTradingPage(BasePage):
             re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
         ).first
 
-        ## Position close — на новому домені beta-dex.truefinance.ai з'явилась
+        ## Position close — на новому домені dex-dev.true.trading з'явилась
         # confirmation модалка (на старому домені її не було). Закриття тепер
         # двоетапне: клік "Close position" біля позиції → модалка → confirm.
         # Маленька кнопка на самій позиції (відкриває модалку):
@@ -555,7 +555,7 @@ class SolTradingPage(BasePage):
     def close_position(self) -> None:
         """Закрити першу відкриту позицію через двоетапний UI-флоу.
 
-        На новому домені beta-dex.truefinance.ai з'явилась confirmation
+        На новому домені dex-dev.true.trading з'явилась confirmation
         модалка: клік на "Close position" біля позиції відкриває модалку
         з підтвердженням, де треба клікнути другу "Close position".
 

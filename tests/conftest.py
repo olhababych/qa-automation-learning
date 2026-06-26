@@ -1,3 +1,4 @@
+import datetime
 from pathlib import Path
 from typing import Generator
 
@@ -19,7 +20,7 @@ AUTH_STATE_FILE = Path(__file__).parent.parent / "auth_state.json"
 # зі справжніми коштами або непередбачуваними наслідками.
 #
 # Додавати домени сюди тільки після свідомої перевірки, що там testnet.
-SAFE_DOMAINS = ["beta-dex.truefinance.ai"]
+SAFE_DOMAINS = ["dex-dev.true.trading"]
 
 
 def pytest_collection_modifyitems(config, items):
@@ -88,3 +89,75 @@ def sol_trading_page(page: Page) -> SolTradingPage:
 def authenticated_sol_trading_page(authenticated_page: Page) -> SolTradingPage:
     """SolTradingPage з авторизованою сесією — для тестів торгівлі на SOL/USDC."""
     return SolTradingPage(authenticated_page)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Hooks для покращення HTML-репорту
+# ──────────────────────────────────────────────────────────────────────────
+
+SCREENSHOTS_DIR = Path(__file__).parent.parent / "reports" / "screenshots"
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """При failure тесту — зробити скріншот і прикріпити його до HTML-репорту.
+
+    Скріншоти зберігаються у reports/screenshots/<test_name>.png та посилання
+    додається до HTML-звіту як <img> поряд з повідомленням про помилку.
+    """
+    outcome = yield
+    report = outcome.get_result()
+
+    # Робимо скріншот тільки при failure у фазі call (сам тест), не у setup/teardown
+    if report.when == "call" and report.failed:
+        # Шукаємо сторінку Playwright серед fixture'ів тесту
+        page = None
+        for fixture_name in ("authenticated_page", "page"):
+            if fixture_name in item.funcargs:
+                page = item.funcargs[fixture_name]
+                break
+            # TradingPage / SolTradingPage загорнуті — дістаємо .page
+            for tp_name in ("authenticated_trading_page", "trading_page",
+                          "authenticated_sol_trading_page", "sol_trading_page"):
+                if tp_name in item.funcargs:
+                    page = item.funcargs[tp_name].page
+                    break
+            if page:
+                break
+
+        if page:
+            try:
+                SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+                safe_name = item.nodeid.replace("/", "_").replace("::", "_").replace("[", "_").replace("]", "")
+                screenshot_path = SCREENSHOTS_DIR / f"{safe_name}.png"
+                page.screenshot(path=str(screenshot_path), full_page=True)
+
+                # Прикріпити до pytest-html звіту як base64-embedded image.
+                # Це дозволяє ділитися self-contained HTML (Netlify, email)
+                # без окремої папки screenshots/.
+                extra = getattr(report, "extra", [])
+                try:
+                    import base64
+                    from pytest_html import extras
+                    with open(screenshot_path, "rb") as img_f:
+                        encoded = base64.b64encode(img_f.read()).decode("utf-8")
+                    extra.append(extras.image(f"data:image/png;base64,{encoded}"))
+                    report.extra = extra
+                except ImportError:
+                    pass
+            except Exception as e:
+                print(f"[screenshot] Failed to capture: {e}")
+
+
+def pytest_html_report_title(report):
+    """Заголовок HTML-репорту."""
+    report.title = "TruefFinance QA Automation Report"
+
+
+def pytest_configure(config):
+    """Додає метадані у HTML-репорт (домен, час, ОС)."""
+    metadata = getattr(config, "_metadata", None)
+    if metadata is not None:
+        metadata["Platform Domain"] = TradingPage.URL
+        metadata["Run Started"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        metadata["Test Suite"] = "End-to-End UI Tests"

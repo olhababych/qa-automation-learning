@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = [pytest.mark.smoke, pytest.mark.btc]
+
 """
 Тести форми торгівлі (Trade form).
 

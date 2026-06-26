@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = [pytest.mark.deposit_withdraw]
+
 """
 Тести функціональності Deposit / Withdraw модалок.
 

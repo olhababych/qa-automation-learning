@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = [pytest.mark.limit_orders, pytest.mark.btc]
+
 """
 Тести створення та скасування Limit ордерів на BTCUSDC.
 

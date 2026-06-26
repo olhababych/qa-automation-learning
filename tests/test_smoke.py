@@ -1,7 +1,11 @@
+import pytest
 import re
 
 from playwright.sync_api import expect
 from pages.trading_page import TradingPage
+
+
+pytestmark = [pytest.mark.smoke]
 
 def test_trading_page_opens(trading_page: TradingPage):
     """Smoke-тест: сторінка торгівлі BTCUSDC відкривається.

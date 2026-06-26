@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = [pytest.mark.reduce_only, pytest.mark.btc]
+
 """
 Тести функціональності Reduce Only на BTCUSDC.
 

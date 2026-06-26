@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = [pytest.mark.deposit_withdraw, pytest.mark.smoke]
+
 """
 Тести фінансових операцій акаунту.
 

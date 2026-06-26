@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = [pytest.mark.smoke]
+
 """
 Тести базового стану авторизованого користувача.
 

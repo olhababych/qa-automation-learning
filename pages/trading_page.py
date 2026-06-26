@@ -6,7 +6,7 @@ from pages.base_page import BasePage
 class TradingPage(BasePage):
     """Page Object для сторінки торгівлі BTCUSDC."""
 
-    URL = "https://beta-dex.truefinance.ai/trading/BTCUSDC"
+    URL = "https://dex-dev.true.trading/trading/BTCUSDC"
 
     def __init__(self, page: Page):
         super().__init__(page)
@@ -102,7 +102,7 @@ class TradingPage(BasePage):
             re.compile(r"^[\d,]+\.\d{2}\s+USDC$")
         ).first
 
-        ## Position close — на новому домені beta-dex.truefinance.ai з'явилась
+        ## Position close — на новому домені dex-dev.true.trading з'явилась
         # confirmation модалка (на старому домені її не було). Закриття тепер
         # двоетапне: клік "Close position" біля позиції → модалка → confirm.
         # Маленька кнопка на самій позиції (відкриває модалку):
@@ -165,12 +165,12 @@ class TradingPage(BasePage):
         self.long_position_margin: Locator = (
             page.locator("img[alt='long']")
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
-            .locator("> div").nth(6)
+            .locator("> div").nth(-3)
         )
         self.short_position_margin: Locator = (
             page.locator("img[alt='short']")
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
-            .locator("> div").nth(6)
+            .locator("> div").nth(-3)
         )
         
         # Size позиції — 4-та колонка таблиці (Direction, Asset, Leverage, SIZE, ...).
@@ -625,7 +625,7 @@ class TradingPage(BasePage):
     def close_position(self) -> None:
         """Закрити першу відкриту позицію через двоетапний UI-флоу.
 
-        На новому домені beta-dex.truefinance.ai з'явилась confirmation
+        На новому домені dex-dev.true.trading з'явилась confirmation
         модалка: клік на "Close position" біля позиції відкриває модалку
         з підтвердженням, де треба клікнути другу "Close position".
 

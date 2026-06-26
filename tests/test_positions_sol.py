@@ -1,3 +1,5 @@
+
+
 """
 Тести керування позиціями на платформі TrueFinance.
 
@@ -11,7 +13,11 @@
 - Якщо тест падає посередині — закривайте позиції вручну на платформі
   перед наступним запуском.
 """
+
 import pytest
+
+pytestmark = [pytest.mark.positions, pytest.mark.sol]
+
 from playwright.sync_api import expect
 
 from pages.sol_trading_page import SolTradingPage

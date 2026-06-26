@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = [pytest.mark.leverage, pytest.mark.btc]
+
 """
 Тести зміни leverage (плеча).
 
