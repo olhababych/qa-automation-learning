@@ -153,12 +153,12 @@ class SolTradingPage(BasePage):
         self.long_position_margin: Locator = (
             page.locator("img[alt='long']")
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
-            .locator("> div").nth(6)
+            .locator("> div").nth(-3)
         )
         self.short_position_margin: Locator = (
             page.locator("img[alt='short']")
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
-            .locator("> div").nth(6)
+            .locator("> div").nth(-3)
         )
         
         # Size позиції — 4-та колонка таблиці (Direction, Asset, Leverage, SIZE, ...).
