@@ -106,7 +106,7 @@ class TradingPage(BasePage):
         # confirmation модалка (на старому домені її не було). Закриття тепер
         # двоетапне: клік "Close position" біля позиції → модалка → confirm.
         # Маленька кнопка на самій позиції (відкриває модалку):
-        self.close_position_button: Locator = page.get_by_role("button", name="Close position")
+        self.close_position_button: Locator = page.get_by_role("button", name="Close position").first
 
         # Заголовок модалки — використовуємо як якір "модалка з'явилась":
         self.close_position_modal_heading: Locator = page.get_by_text("Close position?")
@@ -620,7 +620,9 @@ class TradingPage(BasePage):
 
         Затримка закриття — до 5 секунд (беремо 10 для запасу).
         """
-        # Крок 1: клікаємо маленьку кнопку біля позиції — відкриває модалку
+        # Крок 1: дочекатись появи кнопки × (після Cancel у модалці вона може
+        # перемальовуватись із затримкою) і клікнути — відкриває модалку
+        expect(self.close_position_button).to_be_visible(timeout=20_000)
         self.close_position_button.click(timeout=60_000)
 
         # Крок 2: чекаємо появи модалки (заголовок як якір)
