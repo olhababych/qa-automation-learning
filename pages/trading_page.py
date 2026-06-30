@@ -27,6 +27,9 @@ class TradingPage(BasePage):
         # Контент-маркери для кожної вкладки
         self.no_positions_text: Locator = page.get_by_text("No open positions")
         self.no_orders_text: Locator = page.get_by_text("No open orders")
+        self.order_notional_below_minimum_toast: Locator = page.get_by_text(
+            "Order notional below minimum"
+        )
         self.no_positions_history_text: Locator = page.get_by_text("No positions history")
         self.no_order_history_text: Locator = page.get_by_text("No order history")
 
