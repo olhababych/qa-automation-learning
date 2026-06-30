@@ -148,6 +148,34 @@ class TradingPage(BasePage):
         self.cancel_first_order_button: Locator = page.locator(
             "button[aria-label='Cancel order'].hover\\:text-red-500"
         ).first
+        
+       
+        # Edit Limit order — інлайн-редагування ціни прямо в рядку ордера.
+        # Олівець "Edit order" має aria-label — стабільний семантичний якір.
+        self.edit_first_order_button: Locator = page.get_by_role(
+            "button", name="Edit order"
+        ).first
+
+        # Поле ціни у режимі редагування. У input немає aria-label/name/placeholder —
+        # лише класи. Прив'язуємось до рядка ордера (h-14) і беремо єдиний input
+        # усередині, щоб не залежати від інших полів на сторінці.
+        # TODO: ask FE team for data-testid on edit price input.
+        # Поле ціни у режимі редагування. У input немає aria-label/name/placeholder.
+        # Прив'язуємось до самого input через його характерний клас h-6 (edit-поле
+        # маленьке, h-6) — він з'являється лише після кліку олівця і єдиний такий
+        # у таблиці ордерів. Не залежить від класу рядка-обгортки.
+        # TODO: ask FE team for data-testid on edit price input.
+        self.edit_order_price_input: Locator = page.locator(
+        "input.h-6"
+        ).first
+
+        # Зелена галочка підтвердження — aria-label="Save".
+        self.edit_order_save_button: Locator = page.get_by_role(
+            "button", name="Save"
+        )
+
+        # Тост успіху після збереження редагування.
+        self.order_updated_toast: Locator = page.get_by_text("Order updated")
 
         # Positions tab counter — динамічний, змінюється з 0 на 1, 2 і т.д.
         # positions_tab_with_one для перевірки появи позиції після Buy/Long
@@ -167,11 +195,12 @@ class TradingPage(BasePage):
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
             .locator("> div").nth(-3)
         )
+        # Margin для Short — третя колонка з кінця (та сама логіка, що для long).
         self.short_position_margin: Locator = (
-            page.locator("img[alt='short']")
-            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
-            .locator("> div").nth(-3)
-        )
+        page.locator("img[alt='short']")
+        .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+        .locator("> div").nth(-3)
+)
         
         # Size позиції — 4-та колонка таблиці (Direction, Asset, Leverage, SIZE, ...).
         # Розмір у BTC (наприклад, "0.0031"). На відміну від margin, Size не змінюється
@@ -221,87 +250,10 @@ class TradingPage(BasePage):
         )
         self.withdraw_modal_close: Locator = page.get_by_role("button",name="Close", exact=True)
 
-        # Amount input у модалках Deposit/Withdraw — textbox з placeholder "0".
-        # Беремо .last — коли модалка відкрита, її input йде ПІСЛЯ price/size
-        # input'ів форми ордера.
-        # Amount input у модалках Deposit/Withdraw — input БЕЗ placeholder.
-        # Скоупимо через сусідній текст subtitle модалки, щоб НЕ зачепити
-        # textbox'и форми ордера (Price, Size).
-        # Amount input модалки Deposit — input з атрибутом name="amount".
-        # Унікальний у DOM, точніший за пошук через сусідні тексти.
-        self.deposit_amount_input: Locator = page.locator("input[name='amount']")
-        # Amount input модалки Withdraw — НЕ має name="amount" (на відміну від
-        # Deposit). Скоупимо через xpath після тексту "Withdrawable" — він
-        # унікальний для цієї модалки.
-        self.withdraw_amount_input: Locator = page.locator(
-            "xpath=//*[contains(text(), 'Withdrawable')]/following::input[not(@type='checkbox')][1]"
-        )
-
-        # Кнопка Deposit ВСЕРЕДИНІ модалки (не плутати з deposit_button у sidebar,
-        # який відкриває модалку). Беремо .last — у DOM кнопка модалки йде пізніше.
-        # Кнопка Deposit ВСЕРЕДИНІ модалки. У DOM є ще одна "Deposit" кнопка
-        # у sidebar — для відкриття модалки. Модальна кнопка з'являється ПІСЛЯ
-        # у DOM, але .last не працює (sidebar кнопка перехоплюється overlay).
-        # Розрізнюємо за класом модальної кнопки (повна ширина, w-full).
-        self.deposit_modal_submit: Locator = page.locator(
-            "button.w-full"
-        ).filter(has_text="Deposit").first
-        self.withdraw_modal_submit: Locator = page.locator(
-            "button.w-full"
-        ).filter(has_text="Withdraw").first
-
-        # Балансові тексти у модалках.
-        # Avail. зустрічається і у формі ордера, тому обмежуємо до dialog scope.
-        # Avail. зустрічається у формі ордера і у Deposit модалці.
-        # У модалці він йде ПЕРШИМ (модалка рендериться у portal, до форми),
-        # тому використовуємо .first — простіше і надійніше за scope-фільтри.
-        self.deposit_available_balance: Locator = page.get_by_text("Avail.").first
-        self.withdraw_available_balance: Locator = page.get_by_text("Withdrawable")
-
-        # Текст inline-валідації — з'являється під полем Amount, коли значення
-        # невалідне (0, нижче мінімуму, тощо). Платформа НЕ блокує submit кнопку,
-        # а показує цей текст замість цього.
-        self.invalid_amount_error: Locator = page.get_by_text("Enter a valid amount")
-        # Toast помилки — з'являється коли notional ордера менший за мінімум
-        # платформи ($100 на тестовому середовищі). Виникає при ціні = 0
-        # або при занадто малому Size.
-        self.order_notional_below_minimum_toast: Locator = page.get_by_text(
-            "Order notional below minimum"
-        )
-        # Помилка для Withdraw — з'являється коли сума нижче мінімуму (1 USDC).
-        # Окремий від invalid_amount_error патерн: платформа використовує
-        # різні тексти помилки для різних випадків.
-        self.below_minimum_withdrawal_error: Locator = page.get_by_text(
-            "Minimum withdrawal is 1 USDC"
-        )
-
 
     def open(self) -> None:
-        """Відкрити сторінку торгівлі BTCUSDC.
-
-        Після reload скидає leverage на 50 (default), якщо потрібно. Це
-        захищає тести від просочення стану між собою: на beta домені
-        leverage persistує через reload, на відміну від dev. Тести які
-        міняли leverage могли б залишити його у нестандартному стані.
-        """
+        """Відкрити сторінку торгівлі BTCUSDC."""
         super().open(self.URL)
-        self._reset_leverage_to_default()
-
-    def _reset_leverage_to_default(self) -> None:
-        """Скинути leverage на 50 якщо потрібно.
-
-        Читає поточний leverage з кнопки (текст "50x", "20x", тощо).
-        Якщо вже 50 — нічого не робить (fast path).
-        Якщо інше — викликає set_leverage(50).
-        """
-        try:
-            current = self.leverage_button.inner_text(timeout=5_000)
-            if current.strip() != "50x":
-                self.set_leverage(50)
-        except Exception:
-            # Якщо кнопка ще не з'явилась (наприклад, сторінка ще завантажується),
-            # тихо пропускаємо — наступний step тесту все одно впаде на конкретній дії.
-            pass
 
     def click_sign_in(self) -> None:
         """Клікнути по Sign In для відкриття auth-модалки."""
@@ -621,6 +573,22 @@ class TradingPage(BasePage):
 
         # Крок 4: чекаємо реального зникнення ордера зі списку
         expect(self.no_orders_text).to_be_visible(timeout=20_000)
+
+    def edit_first_order_price(self, new_price: str) -> None:
+        """Змінити ціну першого Limit-ордера через інлайн-редагування.
+
+        Клік олівця Edit order перетворює Price на поле вводу; після Save
+        платформа показує тост Order updated і оновлює ціну в рядку.
+        Edit не виконує ордер, якщо нова ціна лишається нижче ринку (Long).
+
+        Args:
+            new_price: нова ціна, напр. "55000" (без коми).
+        """
+        expect(self.edit_first_order_button).to_be_visible(timeout=20_000)
+        self.edit_first_order_button.click(timeout=60_000)
+        expect(self.edit_order_price_input).to_be_visible(timeout=10_000)
+        self.edit_order_price_input.fill(new_price)
+        self.edit_order_save_button.click()
 
     def close_position(self) -> None:
         """Закрити першу відкриту позицію через двоетапний UI-флоу.
