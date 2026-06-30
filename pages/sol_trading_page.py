@@ -485,29 +485,6 @@ class SolTradingPage(BasePage):
         # Крок 4: чекаємо реального зникнення ордера зі списку
         expect(self.no_orders_text).to_be_visible(timeout=20_000)
 
-    def close_position(self) -> None:
-        """Відкрити Short-позицію заданого розміру в USDC.
-
-        Виконує повний флоу: вибір Short → введення розміру → очікування,
-        поки UI розрахує BTC-еквівалент → клік Sell / Short.
-        При наявності Long-позиції спрацьовує netting-модель платформи.
-
-        Очікування на BTC-еквівалент критичне: без нього Playwright клікає
-        Sell/Short швидше, ніж React оновить state, і платформа повертає
-        "Order notional below minimum".
-
-        Затримка появи/зміни позиції в UI — до 5 секунд.
-        """
-        self.select_short()
-        self.fill_size(size)
-        # Чекаємо, поки UI відобразить НЕ-нульовий BTC-еквівалент.
-        expect(self.size_btc_equivalent).to_have_text(
-            re.compile(r"^~\d+\.\d+\s+SOL$"), timeout=5_000
-        )
-        # Додаткова стабілізація — див. коментар у open_long_position.
-        self._wait_for_stable_sol_equivalent()
-        self.sell_short_button.click()
-
     def select_limit_order_type(self) -> None:
         """Переключити тип ордера на Limit через combobox.
 
@@ -579,6 +556,32 @@ class SolTradingPage(BasePage):
         # Крок 4: чекаємо реального закриття позиції на платформі
         expect(self.no_positions_text).to_be_visible(timeout=20_000)
 
+
+
+    def cleanup_all(self) -> None:
+        """Закрити всі позиції й скасувати всі ордери. Для teardown-фікстури."""
+        try:
+            self.orders_tab.click(timeout=10_000)
+            for _ in range(10):
+                if self.no_orders_text.is_visible():
+                    break
+                try:
+                    self.cancel_first_order()
+                except Exception:
+                    break
+        except Exception:
+            pass
+        try:
+            self.positions_tab.click(timeout=10_000)
+        except Exception:
+            pass
+        for _ in range(10):
+            try:
+                if self.no_positions_text.is_visible():
+                    break
+                self.close_position()
+            except Exception:
+                break
 
     def get_long_position_margin(self) -> float:
         """Прочитати поточне значення Margin у Long-позиції BTCUSDC.

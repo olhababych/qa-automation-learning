@@ -83,9 +83,15 @@ def authenticated_page(
 
 
 @pytest.fixture
-def authenticated_trading_page(authenticated_page: Page) -> TradingPage:
+def authenticated_trading_page(authenticated_page: Page) -> Generator[TradingPage, None, None]:
     """TradingPage з авторизованою сесією — для тестів торгівлі."""
-    return TradingPage(authenticated_page)
+    tp = TradingPage(authenticated_page)
+    yield tp
+    # Teardown: закрити все, що лишилось, щоб не текло в наступний тест
+    try:
+        tp.cleanup_all()
+    except Exception:
+        pass
 
 
 @pytest.fixture
@@ -95,9 +101,14 @@ def sol_trading_page(page: Page) -> SolTradingPage:
 
 
 @pytest.fixture
-def authenticated_sol_trading_page(authenticated_page: Page) -> SolTradingPage:
+def authenticated_sol_trading_page(authenticated_page: Page) -> Generator[SolTradingPage, None, None]:
     """SolTradingPage з авторизованою сесією — для тестів торгівлі на SOL/USDC."""
-    return SolTradingPage(authenticated_page)
+    tp = SolTradingPage(authenticated_page)
+    yield tp
+    try:
+        tp.cleanup_all()
+    except Exception:
+        pass
 
 
 # ──────────────────────────────────────────────────────────────────────────

@@ -635,6 +635,33 @@ class TradingPage(BasePage):
         expect(self.no_positions_text).to_be_visible(timeout=20_000)
 
 
+
+    def cleanup_all(self) -> None:
+        """Закрити всі позиції й скасувати всі ордери. Для teardown-фікстури.
+        Безпечний: ловить винятки, не валить тест якщо чисто."""
+        try:
+            self.orders_tab.click(timeout=10_000)
+            for _ in range(10):
+                if self.no_orders_text.is_visible():
+                    break
+                try:
+                    self.cancel_first_order()
+                except Exception:
+                    break
+        except Exception:
+            pass
+        try:
+            self.positions_tab.click(timeout=10_000)
+        except Exception:
+            pass
+        for _ in range(10):
+            try:
+                if self.no_positions_text.is_visible():
+                    break
+                self.close_position()
+            except Exception:
+                break
+
     def get_long_position_margin(self) -> float:
         """Прочитати поточне значення Margin у Long-позиції BTCUSDC.
 
