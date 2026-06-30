@@ -244,6 +244,22 @@ class TradingPage(BasePage):
         "Transfer money to your trading account"
         )
         self.deposit_modal_close: Locator = page.get_by_role("button", name="Close", exact=True)
+        # Amount input модалки Deposit — input з атрибутом name="amount".
+        self.deposit_amount_input: Locator = page.locator("input[name='amount']")
+        self.withdraw_amount_input: Locator = page.locator(
+            "xpath=//*[contains(text(), 'Withdrawable')]/following::input[not(@type='checkbox')][1]"
+        )
+        self.deposit_modal_submit: Locator = page.locator(
+            "button.w-full"
+        ).filter(has_text="Deposit").first
+        self.withdraw_modal_submit: Locator = page.locator(
+            "button.w-full"
+        ).filter(has_text="Withdraw").first
+        self.deposit_available_balance: Locator = page.get_by_text("Avail.").first
+        self.withdraw_available_balance: Locator = page.get_by_text("Withdrawable")
+        self.below_minimum_withdrawal_error: Locator = page.get_by_text(
+            "Minimum withdrawal is 1 USDC"
+        )
         # Withdraw модалка
         self.withdraw_modal_subtitle: Locator = page.get_by_text(
         "Transfer money from your trading account"
