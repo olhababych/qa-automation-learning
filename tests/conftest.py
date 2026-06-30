@@ -69,6 +69,15 @@ def authenticated_page(
     Використовуйте у тестах, які потребують залогіненого користувача.
     """
     page = authenticated_context.new_page()
+
+    # Детектор серверних помилок платформи: логує відповіді API зі статусом
+    # 500+. Дозволяє відрізнити падіння через INTERNAL_ERROR бекенду dev від
+    # реального дефекту в тесті — при падінні у виводі видно [SERVER 5xx] URL.
+    def _log_server_error(response):
+        if response.status >= 500:
+            print(f"\n[SERVER {response.status}] {response.url}")
+
+    page.on("response", _log_server_error)
     yield page
     page.close()
 
