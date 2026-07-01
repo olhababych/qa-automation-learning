@@ -95,6 +95,14 @@ class TradingPage(BasePage):
         self.reduce_only_error_toast: Locator = page.get_by_text(
             "Reduce-only order cannot increase position size"
         )
+        # Take Profit / Stop Loss
+        self.tpsl_checkbox: Locator = page.get_by_role(
+            "checkbox", name="Take Profit / Stop Loss"
+        )
+        self.tp_price_input: Locator = page.get_by_placeholder("TP Price")
+        self.sl_price_input: Locator = page.get_by_placeholder("SL Price")
+        self.tp_order_placed_toast: Locator = page.get_by_text("Take Profit order placed")
+        self.sl_order_placed_toast: Locator = page.get_by_text("Stop Loss order placed")
         # Фінансові операції
         # Фінансові операції
         self.deposit_button: Locator = page.get_by_role("button", name="Deposit")
@@ -455,6 +463,26 @@ class TradingPage(BasePage):
         """Закрити модалку Withdraw без транзакції."""
         self.withdraw_modal_close.click()
         
+
+    def open_long_with_tpsl(self, size: str, tp_price: str, sl_price: str) -> None:
+        """Відкрити Long-позицію з Take Profit і Stop Loss.
+        Вмикає чекбокс TP/SL, заповнює TP Price і SL Price, потім Buy/Long.
+        Для Long: TP має бути ВИЩЕ ринку, SL — НИЖЧЕ ринку.
+        Args:
+            size: розмір у USDC, напр. "150".
+            tp_price: ціна Take Profit (вище ринку), напр. "59920".
+            sl_price: ціна Stop Loss (нижче ринку), напр. "58733".
+        """
+        self.select_long()
+        self.fill_size(size)
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~\d+\.\d+\s+BTC$"), timeout=5_000
+        )
+        self.tpsl_checkbox.check(force=True)
+        expect(self.tpsl_checkbox).to_be_checked(timeout=5_000)
+        self.tp_price_input.fill(tp_price)
+        self.sl_price_input.fill(sl_price)
+        self.buy_long_button.click()
 
     def open_long_position(self, size: str) -> None:
         """Відкрити Long-позицію заданого розміру в USDC.
