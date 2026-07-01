@@ -93,6 +93,14 @@ class SolTradingPage(BasePage):
         self.reduce_only_error_toast: Locator = page.get_by_text(
             "Reduce-only order cannot increase position size"
         )
+        # Take Profit / Stop Loss
+        self.tpsl_checkbox: Locator = page.get_by_role(
+            "checkbox", name="Take Profit / Stop Loss"
+        )
+        self.tp_price_input: Locator = page.get_by_placeholder("TP Price")
+        self.sl_price_input: Locator = page.get_by_placeholder("SL Price")
+        self.tp_order_placed_toast: Locator = page.get_by_text("Take Profit order placed")
+        self.sl_order_placed_toast: Locator = page.get_by_text("Stop Loss order placed")
         # Toast помилки — з'являється коли notional ордера менший за мінімум
         # платформи ($100 на тестовому середовищі). Виникає при ціні = 0
         # або при занадто малому Size.
@@ -414,6 +422,25 @@ class SolTradingPage(BasePage):
         """Закрити модалку Withdraw без транзакції."""
         self.withdraw_modal_close.click()
         
+
+    def open_long_with_tpsl(self, size: str, tp_price: str, sl_price: str) -> None:
+        """Відкрити Long-позицію SOL з Take Profit і Stop Loss.
+        Для Long: TP вище ринку, SL нижче ринку.
+        Args:
+            size: розмір у USDC, напр. "150".
+            tp_price: ціна Take Profit (вище ринку).
+            sl_price: ціна Stop Loss (нижче ринку).
+        """
+        self.select_long()
+        self.fill_size(size)
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~\d+\.\d+\s+SOL$"), timeout=5_000
+        )
+        self.tpsl_checkbox.check(force=True)
+        expect(self.tpsl_checkbox).to_be_checked(timeout=5_000)
+        self.tp_price_input.fill(tp_price)
+        self.sl_price_input.fill(sl_price)
+        self.buy_long_button.click()
 
     def open_long_position(self, size: str) -> None:
         """Відкрити Long-позицію заданого розміру в USDC.
