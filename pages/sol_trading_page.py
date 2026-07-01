@@ -27,6 +27,14 @@ class SolTradingPage(BasePage):
         # Контент-маркери для кожної вкладки
         self.no_positions_text: Locator = page.get_by_text("No open positions")
         self.no_orders_text: Locator = page.get_by_text("No open orders")
+        self.edit_first_order_button: Locator = page.get_by_role(
+            "button", name="Edit order"
+        ).first
+        self.edit_order_price_input: Locator = page.locator("input.h-6").first
+        self.edit_order_save_button: Locator = page.get_by_role(
+            "button", name="Save"
+        )
+        self.order_updated_toast: Locator = page.get_by_text("Order updated")
         self.no_positions_history_text: Locator = page.get_by_text("No positions history")
         self.no_order_history_text: Locator = page.get_by_text("No order history")
 
@@ -499,6 +507,18 @@ class SolTradingPage(BasePage):
         self.limit_order_option.click()
         # Sanity check: поле Price з'явилось — значить Limit реально вибрано.
         expect(self.price_input).to_be_visible(timeout=5_000)
+
+    def edit_first_order_price(self, new_price: str) -> None:
+        """Інлайн-редагування ціни першого Limit-ордера на SOLUSDC.
+        Клік олівця → поле ціни стає редагованим → нова ціна → Save.
+        Args:
+            new_price: нова ціна, напр. "55" (без коми).
+        """
+        expect(self.edit_first_order_button).to_be_visible(timeout=20_000)
+        self.edit_first_order_button.click(timeout=60_000)
+        expect(self.edit_order_price_input).to_be_visible(timeout=10_000)
+        self.edit_order_price_input.fill(new_price)
+        self.edit_order_save_button.click()
 
     def create_limit_long_order(self, price: str, size: str) -> None:
         """Створити Limit Long ордер з заданою ціною та розміром у USDC.
