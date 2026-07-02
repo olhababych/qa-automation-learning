@@ -180,10 +180,11 @@ class SolTradingPage(BasePage):
         # Size позиції — 4-та колонка таблиці (Direction, Asset, Leverage, SIZE, ...).
         # Розмір у SOL (наприклад, "2.9914"). На відміну від margin, Size не змінюється
         # при зміні leverage — це фіксована кількість токенів у позиції.
+        self.order_filled_toast: Locator = page.get_by_text("Market order filled")
         self.long_position_size: Locator = (
             page.locator("img[alt='long']")
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
-            .locator("> div").nth(3)
+            .locator("> div").nth(-6)
         )
         
         # Leverage селектор і модалка
@@ -203,9 +204,9 @@ class SolTradingPage(BasePage):
         # Локалізуємо через текст "x50" як якір — від нього беремо сусідні кнопки
         # Значення leverage у модалці — це <div>, тоді як на бейджі пари це <span>
         # TODO: replace with data-testid when FE adds them
-        self.leverage_modal_value: Locator = page.locator("div").filter(
-        has_text=re.compile(r"^x\d+$")
-        ).first
+        self.leverage_modal_value: Locator = page.locator(
+            "div.text-\\[15px\\]"
+        ).filter(has_text=re.compile(r"^x\d+$")).first
         # Кнопки керування у модалці leverage
         self.leverage_modal_decrease: Locator = (
         self.leverage_modal_value.locator("..").locator("button").first
@@ -645,6 +646,7 @@ class SolTradingPage(BasePage):
         # Чекаємо, поки текст у клітинці буде числом, а не плейсхолдером.
         # Regex ловить формат "4.11", "10.05", etc — два знаки після коми
         # (так платформа форматує margin).
+        expect(self.order_filled_toast).to_have_count(0, timeout=15_000)
         expect(self.long_position_margin).to_have_text(
             re.compile(r"^\d+\.\d+$"), timeout=40_000
         )
@@ -666,6 +668,7 @@ class SolTradingPage(BasePage):
         """
         # Чекаємо, поки текст у клітинці буде числом у форматі "2.9914"
         # (SOL має дробову частину з різною кількістю знаків).
+        expect(self.order_filled_toast).to_have_count(0, timeout=15_000)
         expect(self.long_position_size).to_have_text(
             re.compile(r"^\d+\.\d+$"), timeout=20_000
         )

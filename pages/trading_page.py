@@ -201,6 +201,8 @@ class TradingPage(BasePage):
         # h-14 розрізняє рядок позиції від header'а (h-7).
         # Стійко до зміни ціни BTC (бо це live-значення), але крихко до зміни
         # порядку колонок у таблиці. TODO: ask FE team for data-testid.
+        # Тост "Market order filled" — перекриває рядок позиції; чекаємо його зникнення
+        self.order_filled_toast: Locator = page.get_by_text("Market order filled")
         self.long_position_margin: Locator = (
             page.locator("img[alt='long']")
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
@@ -219,7 +221,7 @@ class TradingPage(BasePage):
         self.long_position_size: Locator = (
             page.locator("img[alt='long']")
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
-            .locator("> div").nth(3)
+            .locator("> div").nth(-6)
         )
 
         # Leverage селектор і модалка
@@ -239,9 +241,9 @@ class TradingPage(BasePage):
         # Локалізуємо через текст "x50" як якір — від нього беремо сусідні кнопки
         # Значення leverage у модалці — це <div>, тоді як на бейджі пари це <span>
         # TODO: replace with data-testid when FE adds them
-        self.leverage_modal_value: Locator = page.locator("div").filter(
-        has_text=re.compile(r"^x\d+$")
-        ).first
+        self.leverage_modal_value: Locator = page.locator(
+            "div.text-\\[15px\\]"
+        ).filter(has_text=re.compile(r"^x\d+$")).first
         # Кнопки керування у модалці leverage
         self.leverage_modal_decrease: Locator = (
         self.leverage_modal_value.locator("..").locator("button").first
@@ -708,6 +710,8 @@ class TradingPage(BasePage):
         # Чекаємо, поки текст у клітинці буде числом, а не плейсхолдером.
         # Regex ловить формат "4.11", "10.05", etc — два знаки після коми
         # (так платформа форматує margin).
+        # Тост Market order filled може перекривати рядок — чекаємо зникнення
+        expect(self.order_filled_toast).to_have_count(0, timeout=15_000)
         expect(self.long_position_margin).to_have_text(
             re.compile(r"^\d+\.\d+$"), timeout=20_000
         )
@@ -730,6 +734,7 @@ class TradingPage(BasePage):
         """
         # Чекаємо, поки текст у клітинці буде числом у форматі "0.0031"
         # (BTC має дробову частину з різною кількістю знаків).
+        expect(self.order_filled_toast).to_have_count(0, timeout=15_000)
         expect(self.long_position_size).to_have_text(
             re.compile(r"^\d+\.\d+$"), timeout=20_000
         )

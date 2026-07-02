@@ -316,7 +316,7 @@ def test_open_long_position_with_min_leverage(
     введений Size фактично "заморожується" як забезпечення.
 
     Сценарій:
-    1. Pre-condition: позицій немає, leverage 50x (default).
+    1. Pre-condition: позицій немає; явно встановлюємо leverage 50x.
     2. Встановлюємо leverage = 1.
     3. Відкриваємо Long на POSITION_SIZE_USDC.
     4. Перевіряємо універсальну формулу: margin / Size ≈ 1/leverage (±10%).
@@ -382,7 +382,7 @@ def test_open_long_position_with_mid_leverage(
     При leverage 20x: margin = notional / 20. Для Size $200 → margin ≈ $10.
 
     Сценарій:
-    1. Pre-condition: позицій немає, leverage 50x (default).
+    1. Pre-condition: позицій немає; явно встановлюємо leverage 50x.
     2. Встановлюємо leverage = 20.
     3. Відкриваємо Long на POSITION_SIZE_USDC.
     4. Перевіряємо універсальну формулу: margin / Size ≈ 1/leverage (±10%).
@@ -432,14 +432,6 @@ def test_open_long_position_with_mid_leverage(
 
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Bug платформи: позиція в автотесті відкривається з leverage 10 "
-        "замість 50, хоча toast підтверджує 'Lev 50×'. Margin не "
-        "рекалькулюється при зміні leverage. Bug зафіксовано у Jira."
-    ),
-    strict=False,
-)
 def test_changing_leverage_recalculates_margin_on_open_position(
     authenticated_sol_trading_page: SolTradingPage,
 ):
@@ -453,7 +445,7 @@ def test_changing_leverage_recalculates_margin_on_open_position(
     - зберегти Size SOL незмінним (це фіксована кількість токенів)
 
     Сценарій:
-    1. Pre-condition: позицій немає, leverage 50x (default).
+    1. Pre-condition: позицій немає; явно встановлюємо leverage 50x.
     2. Відкриваємо Long $200 при leverage 50 → margin ≈ $4.
     3. Читаємо margin_before і size_before.
     4. Змінюємо leverage з 50 на 10 (зменшуємо в 5 разів).
@@ -473,7 +465,10 @@ def test_changing_leverage_recalculates_margin_on_open_position(
     expect(page.no_positions_text).to_be_visible()
 
     try:
-        # Дія 1: відкрити Long $200 при дефолтному leverage 50
+        # Явно встановлюємо leverage 50 ПЕРЕД відкриттям: платформа зберігає
+        # leverage між сесіями (не скидає на 50), тож задаємо детерміновано.
+        page.set_leverage(50)
+        # Дія 1: відкрити Long $200 при leverage 50
         page.open_long_position(POSITION_SIZE_USDC)
         expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)
 
