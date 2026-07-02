@@ -45,7 +45,7 @@ def test_edit_limit_order_changes_price(
         page.edit_first_order_price(EDITED_PRICE)
 
         expect(page.order_updated_toast).to_be_visible(timeout=POSITION_TIMEOUT_MS)
-        expect(page.page.get_by_text(EDITED_PRICE, exact=True)).to_be_visible(
+        expect(page.page.get_by_text(EDITED_PRICE, exact=True).first).to_be_visible(
             timeout=POSITION_TIMEOUT_MS
         )
     finally:

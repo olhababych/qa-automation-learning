@@ -147,10 +147,10 @@ class SolTradingPage(BasePage):
         self.cancel_order_modal_confirm: Locator = page.locator(
             "button.bg-active-red"
         ).filter(has_text="Cancel order")
-        # Кнопка × у рядку ордера — використовуємо клас `hover:text-red-500`
+        # Кнопка Cancel order у рядку ордера — за aria-label (клас hover:text-red-500 зник з DOM)
         # для розрізнення від модалки (там клас `bg-active-red`).
-        self.cancel_first_order_button: Locator = page.locator(
-            "button[aria-label='Cancel order'].hover\\:text-red-500"
+        self.cancel_first_order_button: Locator = page.get_by_role(
+            "button", name="Cancel order"
         ).first
 
         # Positions tab counter — динамічний, змінюється з 0 на 1, 2 і т.д.

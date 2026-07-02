@@ -28,7 +28,7 @@ POSITION_SIZE_USDC = "200"
 LIMIT_LONG_PRICE = "30"
 
 # Ціна Limit Short — вище поточної ринкової, з тих самих міркувань.
-LIMIT_SHORT_PRICE = "80"
+LIMIT_SHORT_PRICE = "120"
 
 
 def _ensure_no_orders(page: SolTradingPage) -> None:
@@ -170,9 +170,9 @@ def test_limit_long_above_market_price_fills_immediately(
     _ensure_no_orders(page)
 
     try:
-        # Дія: Limit Long з ціною $80 (вище ринку ~$70, але дає десятковий
-        # SOL-еквівалент 200/80 = 2.5 SOL)
-        page.create_limit_long_order(price="80", size=POSITION_SIZE_USDC)
+        # Дія: Limit Long з ціною $120 (з запасом вище ринку ~$80, дає
+        # десятковий SOL-еквівалент 200/120 = 1.66 SOL)
+        page.create_limit_long_order(price="120", size=POSITION_SIZE_USDC)
 
         # Перевірка №1: з'явилась позиція
         expect(page.positions_tab_with_one).to_be_visible(timeout=POSITION_TIMEOUT_MS)

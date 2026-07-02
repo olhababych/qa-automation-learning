@@ -154,10 +154,10 @@ class TradingPage(BasePage):
         # Кнопка × у рядку ордера — має accessible name "Cancel order"
         # (не плутати з кнопкою "Cancel order" у модалці підтвердження —
         # вона з ОДНАКОВИМ ім'ям, тому беремо .first, бо у рядку йде раніше).
-        # Кнопка × у рядку ордера — використовуємо клас `hover:text-red-500`
+        # Кнопка Cancel order у рядку ордера — за aria-label (клас hover:text-red-500 зник з DOM)
         # для розрізнення від модалки (там клас `bg-active-red`).
-        self.cancel_first_order_button: Locator = page.locator(
-            "button[aria-label='Cancel order'].hover\\:text-red-500"
+        self.cancel_first_order_button: Locator = page.get_by_role(
+            "button", name="Cancel order"
         ).first
         
        
