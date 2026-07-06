@@ -13,6 +13,10 @@ class TradingPage(BasePage):
         # Гостьовий стан
         self.sign_in_button: Locator = page.get_by_role("button", name="Sign In")
         self.trading_pair_button: Locator = page.get_by_role("button", name=re.compile(r"^BTC \/USDC x\d+$"))
+        # Дропдаун вибору торгової пари
+        self.pair_search_input: Locator = page.get_by_placeholder(
+            "Enter asset name or ticker"
+        )
         
         # Auth-модалка (Dynamic SDK)
         self.auth_modal_heading: Locator = page.get_by_test_id("dynamic-auth-modal-heading")
@@ -293,6 +297,18 @@ class TradingPage(BasePage):
         self.auth_modal_close_button.click()
         
         
+    def switch_to_pair(self, ticker: str) -> None:
+        """Перемкнути торгову пару через дропдаун селектора.
+        Клік на селектор пари → пошук тикера → вибір рядка зі списку.
+        Args:
+            ticker: тикер пари, напр. "SOL" (шукає "SOL/USDC").
+        """
+        self.trading_pair_button.click()
+        expect(self.pair_search_input).to_be_visible(timeout=10_000)
+        self.pair_search_input.fill(ticker)
+        # Вибрати рядок пари зі списку (напр. "SOL/USDC")
+        self.page.get_by_text(f"{ticker}/USDC", exact=False).first.click()
+
     def fill_size(self, value: str) -> None:
         """Ввести значення в поле розміру позиції."""
         self.size_input.fill(value)
