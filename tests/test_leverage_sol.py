@@ -45,12 +45,9 @@ def test_decrease_leverage_without_confirm_does_not_persist(
     """
     authenticated_sol_trading_page.open()
 
-    # Чекаємо, поки кнопка leverage стабілізується на "50x".
-    # page.open() робить reload, який платформа використовує як сигнал
-    # скинути leverage на дефолтні 50x. Але DOM містить кеш — спочатку
-    # показує застаріле значення (наприклад 20x з попередньої сесії),
-    # потім FE оновлює на 50x. Без явного очікування саме "50x"
-    # inner_text() може зловити застаріле значення.
+    # Платформа зберігає leverage між сесіями (не скидає на 50x при reload),
+    # тож стартове значення непередбачуване. Явно встановлюємо відоме 50.
+    authenticated_sol_trading_page.set_leverage(50)
     expect(authenticated_sol_trading_page.leverage_button).to_have_text(
         "50x", timeout=5_000
     )

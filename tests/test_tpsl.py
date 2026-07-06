@@ -10,7 +10,7 @@ from pages.trading_page import TradingPage
 POSITION_TIMEOUT_MS = 20_000
 POSITION_SIZE_USDC = "150"
 # TP вище ринку, SL нижче ринку — з запасом, щоб не спрацювали одразу.
-TP_PRICE = "62000"
+TP_PRICE = "75000"
 SL_PRICE = "56000"
 
 
