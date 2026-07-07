@@ -36,6 +36,9 @@ class TradingPage(BasePage):
         )
         self.no_positions_history_text: Locator = page.get_by_text("No positions history")
         self.no_order_history_text: Locator = page.get_by_text("No order history")
+        # Записи в історії (статуси-якорі)
+        self.order_history_filled_status: Locator = page.get_by_text("Filled").first
+        self.positions_history_closed_status: Locator = page.get_by_text("CLOSED").first
 
         # Поле розміру позиції (TODO: ask FE team for data-testid)
         #.first використовуємо, бо placeholder="0" може бути на кількох полях
