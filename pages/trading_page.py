@@ -506,6 +506,25 @@ class TradingPage(BasePage):
         self.sl_price_input.fill(sl_price)
         self.buy_long_button.click()
 
+    def open_short_with_tpsl(self, size: str, tp_price: str, sl_price: str) -> None:
+        """Відкрити Short-позицію з Take Profit і Stop Loss.
+        Для Short: TP має бути НИЖЧЕ ринку, SL — ВИЩЕ ринку (дзеркало Long).
+        Args:
+            size: розмір у USDC.
+            tp_price: ціна Take Profit (нижче ринку).
+            sl_price: ціна Stop Loss (вище ринку).
+        """
+        self.select_short()
+        self.fill_size(size)
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~\d+\.\d+\s+BTC$"), timeout=5_000
+        )
+        self.tpsl_checkbox.check(force=True)
+        expect(self.tpsl_checkbox).to_be_checked(timeout=5_000)
+        self.tp_price_input.fill(tp_price)
+        self.sl_price_input.fill(sl_price)
+        self.sell_short_button.click()
+
     def open_long_position(self, size: str) -> None:
         """Відкрити Long-позицію заданого розміру в USDC.
 
