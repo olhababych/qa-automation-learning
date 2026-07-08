@@ -20,7 +20,7 @@ AUTH_STATE_FILE = Path(__file__).parent.parent / "auth_state.json"
 # зі справжніми коштами або непередбачуваними наслідками.
 #
 # Додавати домени сюди тільки після свідомої перевірки, що там testnet.
-SAFE_DOMAINS = ["dex-dev.true.trading"]
+SAFE_DOMAINS = ["d23u65c82prt0b.amplifyapp.com"]
 
 
 def pytest_collection_modifyitems(config, items):
