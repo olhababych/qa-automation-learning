@@ -21,13 +21,15 @@ def test_tpsl_checkbox_reveals_price_fields(
     page = authenticated_sol_trading_page
     page.open()
 
-    expect(page.tp_price_input).to_be_hidden()
-
-    page.tpsl_checkbox.check(force=True)
+    # TP/SL тепер увімкнений за замовчуванням — поля видимі одразу
     expect(page.tpsl_checkbox).to_be_checked(timeout=5_000)
-
     expect(page.tp_price_input).to_be_visible(timeout=POSITION_TIMEOUT_MS)
     expect(page.sl_price_input).to_be_visible(timeout=POSITION_TIMEOUT_MS)
+
+    # Після зняття галки поля зникають
+    page.tpsl_checkbox.uncheck(force=True)
+    expect(page.tpsl_checkbox).not_to_be_checked(timeout=5_000)
+    expect(page.tp_price_input).to_be_hidden(timeout=POSITION_TIMEOUT_MS)
 
 
 def test_open_long_with_tpsl_shows_in_position(
