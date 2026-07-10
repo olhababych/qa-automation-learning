@@ -173,7 +173,11 @@ class SolTradingPage(BasePage):
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
             .locator("> div").nth(-3)
         )
-        self.short_position_indicator: Locator = page.locator("img[alt='short']")
+        # Індикатор Short саме в рядку позиції (h-14), не в формі напрямку.
+        self.short_position_indicator: Locator = (
+            page.locator("img[alt='short']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+        )
         self.short_position_margin: Locator = (
             page.locator("img[alt='short']")
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")

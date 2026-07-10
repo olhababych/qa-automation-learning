@@ -536,6 +536,10 @@ def test_open_short_position_creates_position(
         expect(page.no_positions_text).not_to_be_visible(
             timeout=POSITION_TIMEOUT_MS
         )
+        # Перевіряємо саме напрямок: у рядку позиції є індикатор Short.
+        expect(page.short_position_indicator).to_be_visible(
+            timeout=POSITION_TIMEOUT_MS
+        )
     finally:
         page.close_position()
 
