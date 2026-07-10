@@ -219,6 +219,7 @@ class TradingPage(BasePage):
             .locator("> div").nth(-3)
         )
         # Margin для Short — третя колонка з кінця (та сама логіка, що для long).
+        self.short_position_indicator: Locator = page.locator("img[alt='short']")
         self.short_position_margin: Locator = (
         page.locator("img[alt='short']")
         .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
