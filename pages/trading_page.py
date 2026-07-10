@@ -6,7 +6,7 @@ from pages.base_page import BasePage
 class TradingPage(BasePage):
     """Page Object для сторінки торгівлі BTCUSDC."""
 
-    URL = "https://main.d23u65c82prt0b.amplifyapp.com/trading/BTCUSDC"
+    URL = "https://dex-dev.true.trading/trading/BTCUSDC"
 
     def __init__(self, page: Page):
         super().__init__(page)
@@ -72,7 +72,9 @@ class TradingPage(BasePage):
         self.short_tab: Locator = page.get_by_role("button", name="Short", exact=True)
         # Тип ордера — combobox у формі (зверху, поряд з leverage).
         # Платформа використовує <combobox>, не звичайний <button>.
-        self.order_type_combobox: Locator = page.get_by_role("combobox").first
+        self.order_type_combobox: Locator = page.get_by_role(
+            "combobox"
+        ).filter(has_text=re.compile(r"^(Market|Limit)$")).first
 
         # Опція "Limit" у дропдауні — з'являється після кліку на combobox.
         self.limit_order_option: Locator = page.get_by_role(
@@ -525,6 +527,16 @@ class TradingPage(BasePage):
         self.sl_price_input.fill(sl_price)
         self.sell_short_button.click()
 
+    def disable_tpsl_if_enabled(self) -> None:
+        """Зняти галку Take Profit / Stop Loss, якщо вона увімкнена.
+        На dex-dev TP/SL тепер увімкнений за замовчуванням — для звичайних
+        ордерів (без TP/SL) його треба знімати, інакше порожні TP/SL поля
+        блокують створення ордера.
+        """
+        if self.tpsl_checkbox.is_checked():
+            self.tpsl_checkbox.uncheck(force=True)
+            expect(self.tpsl_checkbox).not_to_be_checked(timeout=5_000)
+
     def open_long_position(self, size: str) -> None:
         """Відкрити Long-позицію заданого розміру в USDC.
 
@@ -548,6 +560,7 @@ class TradingPage(BasePage):
         # Додаткова стабілізація — чекаємо, поки UI перестане оновлювати
         # BTC-еквівалент (зазвичай ~1 сек після першої появи).
         self._wait_for_stable_btc_equivalent()
+        self.disable_tpsl_if_enabled()
         self.buy_long_button.click()
         
         
@@ -572,6 +585,7 @@ class TradingPage(BasePage):
         )
         # Додаткова стабілізація — див. коментар у open_long_position.
         self._wait_for_stable_btc_equivalent()
+        self.disable_tpsl_if_enabled()
         self.sell_short_button.click()
 
     def select_limit_order_type(self) -> None:
@@ -617,6 +631,7 @@ class TradingPage(BasePage):
             re.compile(r"^~0\.\d+\s+BTC$"), timeout=5_000
         )
         self._wait_for_stable_btc_equivalent()
+        self.disable_tpsl_if_enabled()
         self.buy_long_button.click()
 
     def create_limit_short_order(self, price: str, size: str) -> None:
@@ -636,6 +651,7 @@ class TradingPage(BasePage):
             re.compile(r"^~0\.\d+\s+BTC$"), timeout=5_000
         )
         self._wait_for_stable_btc_equivalent()
+        self.disable_tpsl_if_enabled()
         self.sell_short_button.click()
 
     def cancel_first_order(self) -> None:

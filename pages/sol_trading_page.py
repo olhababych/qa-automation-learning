@@ -6,7 +6,7 @@ from pages.base_page import BasePage
 class SolTradingPage(BasePage):
     """Page Object для сторінки торгівлі BTCUSDC."""
 
-    URL = "https://main.d23u65c82prt0b.amplifyapp.com/trading/SOLUSDC"
+    URL = "https://dex-dev.true.trading/trading/SOLUSDC"
 
     def __init__(self, page: Page):
         super().__init__(page)
@@ -66,7 +66,9 @@ class SolTradingPage(BasePage):
         # Тип ордера — combobox у формі (зверху, поряд з leverage).
         # На сторінці кілька combobox (USDC, тип ордера, ордербук precision),
         # але перший — це тип ордера.
-        self.order_type_combobox: Locator = page.get_by_role("combobox").first
+        self.order_type_combobox: Locator = page.get_by_role(
+            "combobox"
+        ).filter(has_text=re.compile(r"^(Market|Limit)$")).first
         # Опція "Limit" у дропдауні — з'являється після кліку на combobox.
         self.limit_order_option: Locator = page.get_by_role(
             "option", name="Limit"
@@ -443,6 +445,12 @@ class SolTradingPage(BasePage):
         self.sl_price_input.fill(sl_price)
         self.buy_long_button.click()
 
+    def disable_tpsl_if_enabled(self) -> None:
+        """Зняти галку Take Profit / Stop Loss, якщо увімкнена (новий дефолт dex-dev)."""
+        if self.tpsl_checkbox.is_checked():
+            self.tpsl_checkbox.uncheck(force=True)
+            expect(self.tpsl_checkbox).not_to_be_checked(timeout=5_000)
+
     def open_long_position(self, size: str) -> None:
         """Відкрити Long-позицію заданого розміру в USDC.
 
@@ -466,6 +474,7 @@ class SolTradingPage(BasePage):
         # Додаткова стабілізація — чекаємо, поки UI перестане оновлювати
         # SOL-еквівалент (зазвичай ~1 сек після першої появи).
         self._wait_for_stable_sol_equivalent()
+        self.disable_tpsl_if_enabled()
         self.buy_long_button.click()
 
     def open_short_position(self, size: str) -> None:
@@ -479,6 +488,7 @@ class SolTradingPage(BasePage):
             re.compile(r"^~\d+\.\d+\s+SOL$"), timeout=5_000
         )
         self._wait_for_stable_sol_equivalent()
+        self.disable_tpsl_if_enabled()
         self.sell_short_button.click()
 
     def create_limit_short_order(self, price: str, size: str) -> None:
@@ -497,6 +507,7 @@ class SolTradingPage(BasePage):
             re.compile(r"^~\d+\.\d+\s+SOL$"), timeout=5_000
         )
         self._wait_for_stable_sol_equivalent()
+        self.disable_tpsl_if_enabled()
         self.sell_short_button.click()
 
     def cancel_first_order(self) -> None:
@@ -575,6 +586,7 @@ class SolTradingPage(BasePage):
             re.compile(r"^~\d+\.\d+\s+SOL$"), timeout=5_000
         )
         self._wait_for_stable_sol_equivalent()
+        self.disable_tpsl_if_enabled()
         self.buy_long_button.click()
 
     def close_position(self) -> None:
