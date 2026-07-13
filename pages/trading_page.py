@@ -76,6 +76,10 @@ class TradingPage(BasePage):
             "combobox"
         ).filter(has_text=re.compile(r"^(Market|Limit)$")).first
 
+        # Опція "Market" у дропдауні — для повернення з Limit на Market.
+        self.market_order_option: Locator = page.get_by_role(
+            "option", name="Market"
+        )
         # Опція "Limit" у дропдауні — з'являється після кліку на combobox.
         self.limit_order_option: Locator = page.get_by_role(
             "option", name="Limit"
@@ -610,6 +614,13 @@ class TradingPage(BasePage):
         self.limit_order_option.click()
         # Sanity check: поле Price з'явилось — значить Limit реально вибрано.
         expect(self.price_input).to_be_visible(timeout=5_000)
+
+    def select_market_order_type(self) -> None:
+        """Переключити тип ордера назад на Market через combobox.
+        Після переключення поле Price зникає (Market не має ціни входу).
+        """
+        self.order_type_combobox.click()
+        self.market_order_option.click()
 
     def create_limit_long_order(self, price: str, size: str) -> None:
         """Створити Limit Long ордер з заданою ціною та розміром у USDC.
