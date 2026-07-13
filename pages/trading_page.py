@@ -122,6 +122,9 @@ class TradingPage(BasePage):
         self.tp_below_market_error: Locator = page.get_by_text("must be below market price").first
         self.sl_above_market_error: Locator = page.get_by_text("must be above market price").first
         self.sl_price_input: Locator = page.get_by_placeholder("SL Price")
+        # Поля відсотка прибутку/збитку в блоці Auto close (альтернатива абс. ціні).
+        self.tp_profit_percent_input: Locator = page.get_by_placeholder("Profit")
+        self.sl_loss_percent_input: Locator = page.get_by_placeholder("Loss")
         self.tp_order_placed_toast: Locator = page.get_by_text("Take Profit order placed")
         self.sl_order_placed_toast: Locator = page.get_by_text("Stop Loss order placed")
         # Фінансові операції
