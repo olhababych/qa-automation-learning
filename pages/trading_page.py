@@ -256,6 +256,13 @@ class TradingPage(BasePage):
         )
         self.leverage_modal_heading: Locator = page.get_by_text("Adjust BTCUSDC Leverage")
         self.leverage_modal_close: Locator = page.get_by_role("button", name="Close", exact=True)
+        # Margin mode модалка (Cross / Isolated). Isolated ще в розробці.
+        self.margin_mode_button: Locator = page.get_by_role("button", name="Cross", exact=True)
+        self.margin_mode_heading: Locator = page.get_by_text("Margin mode for BTC")
+        self.margin_mode_cross_option: Locator = page.get_by_text("Cross margin").first
+        self.margin_mode_isolated_option: Locator = page.get_by_text("Isolated margin").first
+        self.margin_mode_confirm: Locator = page.get_by_role("button", name="Confirm")
+        self.margin_mode_close: Locator = page.get_by_role("button", name="Close")
         self.leverage_modal_confirm: Locator = page.get_by_role("button", name="Confirm")
 
         # Значення leverage всередині модалки, формат "x50", "x49", "x100"
