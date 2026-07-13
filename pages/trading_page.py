@@ -110,6 +110,9 @@ class TradingPage(BasePage):
         )
         self.tp_price_input: Locator = page.get_by_placeholder("TP Price")
         self.tp_above_market_error: Locator = page.get_by_text("must be above market price")
+        self.sl_below_market_error: Locator = page.get_by_text("must be below market price").first
+        self.tp_below_market_error: Locator = page.get_by_text("must be below market price").first
+        self.sl_above_market_error: Locator = page.get_by_text("must be above market price").first
         self.sl_price_input: Locator = page.get_by_placeholder("SL Price")
         self.tp_order_placed_toast: Locator = page.get_by_text("Take Profit order placed")
         self.sl_order_placed_toast: Locator = page.get_by_text("Stop Loss order placed")
