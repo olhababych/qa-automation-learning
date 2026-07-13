@@ -43,6 +43,10 @@ class TradingPage(BasePage):
         # Поле розміру позиції (TODO: ask FE team for data-testid)
         #.first використовуємо, бо placeholder="0" може бути на кількох полях
         self.size_input: Locator = page.get_by_placeholder("0").first
+        # Поле відсотка розміру (праворуч від слайдера) — вузький input.w-13.
+        self.size_percent_input: Locator = page.locator("input.w-13")
+        # Слайдер розміру (0-100%).
+        self.size_slider: Locator = page.get_by_role("slider")
         # Size input у Limit-режимі — другий textbox (перший це Price).
         # У Market-режимі використовуємо size_input (перший).
         self.size_input_limit: Locator = page.locator(
