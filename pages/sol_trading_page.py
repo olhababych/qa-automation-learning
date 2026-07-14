@@ -23,6 +23,8 @@ class SolTradingPage(BasePage):
         self.orders_tab: Locator = page.get_by_role("button", name="Orders", exact=True)
         self.positions_history_tab: Locator = page.get_by_role("button", name="Positions history")
         self.order_history_tab: Locator = page.get_by_role("button", name="Order history")
+        self.order_history_filled_status: Locator = page.get_by_text("Filled").first
+        self.positions_history_closed_status: Locator = page.get_by_text("CLOSED").first
 
         # Контент-маркери для кожної вкладки
         self.no_positions_text: Locator = page.get_by_text("No open positions")
@@ -449,6 +451,21 @@ class SolTradingPage(BasePage):
         self.tp_price_input.fill(tp_price)
         self.sl_price_input.fill(sl_price)
         self.buy_long_button.click()
+
+    def open_short_with_tpsl(self, size: str, tp_price: str, sl_price: str) -> None:
+        """Відкрити Short-позицію SOL з Take Profit і Stop Loss.
+        Для Short: TP нижче ринку, SL вище ринку (дзеркало Long).
+        """
+        self.select_short()
+        self.fill_size(size)
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~\d+\.\d+\s+SOL$"), timeout=5_000
+        )
+        self.tpsl_checkbox.check(force=True)
+        expect(self.tpsl_checkbox).to_be_checked(timeout=5_000)
+        self.tp_price_input.fill(tp_price)
+        self.sl_price_input.fill(sl_price)
+        self.sell_short_button.click()
 
     def disable_tpsl_if_enabled(self) -> None:
         """Зняти галку Take Profit / Stop Loss, якщо увімкнена (новий дефолт dex-dev)."""
