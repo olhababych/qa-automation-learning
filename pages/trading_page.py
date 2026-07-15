@@ -13,6 +13,15 @@ class TradingPage(BasePage):
         # Гостьовий стан
         self.sign_in_button: Locator = page.get_by_role("button", name="Sign In")
         self.trading_pair_button: Locator = page.get_by_role("button", name=re.compile(r"^BTC \/USDC x\d+$"))
+        # Поточна ринкова ціна (великий заголовок "$62,534.30" біля пари).
+        self.current_price_display: Locator = page.locator(
+            "div.font-bold.text-lg"
+        ).filter(has_text=re.compile(r"^\$[\d,]+\.\d+$")).first
+        # Oracle price (незалежна зовнішня ціна). TP/SL тригеряться за Oracle,
+        # виконуються за Market. Клас text-xs+uppercase відрізняє від головної ціни.
+        self.oracle_price_display: Locator = page.locator(
+            "div.text-xs.uppercase"
+        ).filter(has_text=re.compile(r"^\$[\d,]+\.\d+$")).first
         # Дропдаун вибору торгової пари
         self.pair_search_input: Locator = page.get_by_placeholder(
             "Enter asset name or ticker"
@@ -562,6 +571,66 @@ class TradingPage(BasePage):
         if self.tpsl_checkbox.is_checked():
             self.tpsl_checkbox.uncheck(force=True)
             expect(self.tpsl_checkbox).not_to_be_checked(timeout=5_000)
+
+    def read_current_price(self) -> float:
+        """Прочитати поточну ринкову (Market/last) ціну."""
+        expect(self.current_price_display).to_be_visible(timeout=15_000)
+        text = self.current_price_display.inner_text()
+        return float(text.replace("$", "").replace(",", "").strip())
+
+    def read_oracle_price(self) -> float:
+        """Прочитати Oracle-ціну (за нею тригеряться TP/SL)."""
+        expect(self.oracle_price_display).to_be_visible(timeout=15_000)
+        text = self.oracle_price_display.inner_text()
+        return float(text.replace("$", "").replace(",", "").strip())
+
+    def open_long_with_tpsl_near_market(self, size: str, offset_pct: float = 0.15) -> None:
+        """Відкрити Long з TP/SL близько до ринку (для тесту спрацювання).
+        TP/SL тригеряться за ORACLE-ціною, тому рівні рахуємо від Oracle,
+        а не від Market. TP = oracle*(1+offset), SL = oracle*(1-offset).
+        Args:
+            size: розмір у USDC.
+            offset_pct: відступ TP/SL від Oracle-ціни у відсотках.
+        """
+        price = self.read_oracle_price()
+        tp = round(price * (1 + offset_pct / 100))
+        sl = round(price * (1 - offset_pct / 100))
+        self.select_long()
+        self.fill_size(size)
+        expect(self.size_btc_equivalent).to_have_text(
+            re.compile(r"^~\d+\.\d+\s+BTC$"), timeout=5_000
+        )
+        self.tpsl_checkbox.check(force=True)
+        expect(self.tpsl_checkbox).to_be_checked(timeout=5_000)
+        self.tp_price_input.fill(str(tp))
+        self.sl_price_input.fill(str(sl))
+        self.buy_long_button.click()
+
+    def wait_for_position_closed(self, timeout_ms: int = 300_000) -> None:
+        """Чекати, поки позиція закриється (спрацював TP або SL).
+        Позиція закрита, коли вкладка знову показує 'Positions (0)'.
+        Таймаут за замовчуванням — 5 хв (ринок має зачепити рівень).
+        Діагностика: періодично друкує поточний стан, щоб було видно рух.
+        """
+        import time
+        deadline = time.time() + timeout_ms / 1000
+        while time.time() < deadline:
+            if self.positions_tab.is_visible():  # "Positions (0)"
+                print("[TPSL] Позиція закрилась — Positions (0)")
+                return
+            try:
+                oracle = self.read_oracle_price()
+                market = self.read_current_price()
+                print(f"[TPSL] чекаю... Oracle={oracle} Market={market}, позиція ще відкрита")
+            except Exception:
+                print("[TPSL] чекаю... (ціну не вдалось прочитати)")
+            time.sleep(10)
+        # Таймаут — надрукувати фінальний стан
+        raise AssertionError(
+            f"Позиція не закрилась за {timeout_ms/1000:.0f}с. "
+            f"Positions(1) visible={self.positions_tab_with_one.is_visible()}, "
+            f"Positions(0) visible={self.positions_tab.is_visible()}"
+        )
 
     def open_long_position(self, size: str) -> None:
         """Відкрити Long-позицію заданого розміру в USDC.
