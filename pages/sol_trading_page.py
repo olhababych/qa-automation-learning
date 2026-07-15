@@ -20,6 +20,21 @@ class SolTradingPage(BasePage):
 
         # Вкладки нижньої панелі
         self.positions_tab: Locator = page.get_by_role("button", name="Positions (0)")
+        self.positions_tab_any: Locator = page.get_by_role(
+            "button", name=re.compile(r"^Positions \(\d+\)$")
+        )
+        # Margin mode (Cross/Isolated) — режим account-wide; heading для SOL.
+        self.margin_mode_button: Locator = page.get_by_role("button", name="Cross", exact=True)
+        self.margin_mode_heading: Locator = page.get_by_text("Margin mode for SOL")
+        self.margin_mode_isolated_option: Locator = page.get_by_text("Isolated margin").first
+        self.margin_mode_confirm: Locator = page.get_by_role("button", name="Confirm")
+        self.margin_mode_close: Locator = page.get_by_role("button", name="Close", exact=True)
+        self.margin_mode_button_isolated: Locator = page.get_by_role(
+            "button", name="Isolated", exact=True
+        )
+        self.margin_mode_blocked_error: Locator = page.get_by_text(
+            "Close all positions and cancel all orders"
+        )
         self.orders_tab: Locator = page.get_by_role("button", name="Orders", exact=True)
         self.positions_history_tab: Locator = page.get_by_role("button", name="Positions history")
         self.order_history_tab: Locator = page.get_by_role("button", name="Order history")
@@ -640,6 +655,13 @@ class SolTradingPage(BasePage):
 
 
 
+    def switch_margin_mode_to_isolated(self) -> None:
+        """Перемкнути режим маржі Cross -> Isolated через модалку (account-wide)."""
+        self.margin_mode_button.click()
+        expect(self.margin_mode_heading).to_be_visible(timeout=10_000)
+        self.margin_mode_isolated_option.click()
+        self.margin_mode_confirm.click()
+
     def cleanup_all(self) -> None:
         """Закрити всі позиції й скасувати всі ордери. Для teardown-фікстури."""
         try:
@@ -654,7 +676,7 @@ class SolTradingPage(BasePage):
         except Exception:
             pass
         try:
-            self.positions_tab.click(timeout=10_000)
+            self.positions_tab_any.first.click(timeout=10_000)
         except Exception:
             pass
         for _ in range(10):
