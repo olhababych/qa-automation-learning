@@ -2,9 +2,9 @@ import pytest
 
 pytestmark = [pytest.mark.smoke, pytest.mark.btc]
 """
-Тести модалки вибору режиму маржі (Cross / Isolated).
-Isolated поки в розробці — тестуємо лише наявність і базову поведінку
-модалки, без реального перемикання на Isolated.
+Тести режиму маржі (Cross / Isolated).
+Покриває: відкриття/закриття модалки, успішне перемикання Cross<->Isolated
+на чистому акаунті, і блокування (409) перемикання при відкритій позиції.
 """
 from playwright.sync_api import expect
 from pages.trading_page import TradingPage
