@@ -975,3 +975,18 @@ class TradingPage(BasePage):
         )
         new_text = self.long_position_margin.inner_text()
         return float(new_text)
+
+    def wait_for_long_position_size_change(self, from_text: str) -> float:
+        """Чекає, поки Size Long-позиції зміниться відносно from_text, і
+        повертає нове значення. Size у BTC має змінну кількість знаків
+        ("0.0032"), тож порівнюємо за сирим текстом, не форматуємо.
+        Args:
+            from_text: попередній текст size (як показує платформа, напр. "0.0032").
+        Returns:
+            Нове значення size після зміни.
+        Raises:
+            AssertionError: якщо size не змінився за 20 секунд.
+        """
+        expect(self.long_position_size).not_to_have_text(from_text, timeout=20_000)
+        new_text = self.long_position_size.inner_text()
+        return float(new_text)
