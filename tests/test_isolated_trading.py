@@ -55,3 +55,11 @@ def test_open_short_position_in_isolated_mode(isolated_mode: TradingPage):
     page.open_short_position("200")
     expect(page.positions_tab_with_one).to_be_visible(timeout=20_000)
     expect(page.short_position_indicator).to_be_visible(timeout=20_000)
+
+
+def test_create_limit_short_order_in_isolated_mode(isolated_mode: TradingPage):
+    """У Isolated-режимі Limit Short ордер (вище ринку) створюється успішно."""
+    page = isolated_mode
+    page.create_limit_short_order(price="200000", size="200")  # значно вище ринку
+    page.orders_tab.click()
+    expect(page.no_orders_text).to_be_hidden(timeout=20_000)

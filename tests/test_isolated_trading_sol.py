@@ -44,3 +44,19 @@ def test_open_short_position_in_isolated_mode_sol(isolated_mode_sol: SolTradingP
     page.open_short_position("150")
     expect(page.positions_tab_with_one).to_be_visible(timeout=20_000)
     expect(page.short_position_indicator).to_be_visible(timeout=20_000)
+
+
+def test_create_limit_long_order_in_isolated_mode_sol(isolated_mode_sol: SolTradingPage):
+    """У Isolated-режимі Limit Long SOL ордер (нижче ринку) створюється успішно."""
+    page = isolated_mode_sol
+    page.create_limit_long_order(price="60", size="150")  # нижче ринку (~76)
+    page.orders_tab.click()
+    expect(page.no_orders_text).to_be_hidden(timeout=20_000)
+
+
+def test_create_limit_short_order_in_isolated_mode_sol(isolated_mode_sol: SolTradingPage):
+    """У Isolated-режимі Limit Short SOL ордер (вище ринку) створюється успішно."""
+    page = isolated_mode_sol
+    page.create_limit_short_order(price="500", size="150")  # значно вище ринку
+    page.orders_tab.click()
+    expect(page.no_orders_text).to_be_hidden(timeout=20_000)
