@@ -848,6 +848,22 @@ class TradingPage(BasePage):
         self.margin_mode_isolated_option.click()
         self.margin_mode_confirm.click()
 
+    def ensure_isolated_mode(self) -> None:
+        """Гарантувати режим Isolated: перемкнути, лише якщо ще не Isolated.
+        Ідемпотентно — безпечно викликати незалежно від поточного стану.
+        """
+        if self.margin_mode_button_isolated.is_visible():
+            return  # вже Isolated
+        self.switch_margin_mode_to_isolated()
+        expect(self.margin_mode_button_isolated).to_be_visible(timeout=10_000)
+
+    def ensure_cross_mode(self) -> None:
+        """Гарантувати режим Cross: перемкнути, лише якщо ще не Cross."""
+        if self.margin_mode_button.is_visible():
+            return  # вже Cross
+        self.switch_margin_mode_to_cross()
+        expect(self.margin_mode_button).to_be_visible(timeout=10_000)
+
     def switch_margin_mode_to_cross(self) -> None:
         """Перемкнути режим маржі Isolated -> Cross через модалку."""
         self.margin_mode_button_isolated.click()
