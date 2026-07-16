@@ -26,6 +26,7 @@ class SolTradingPage(BasePage):
         # Margin mode (Cross/Isolated) — режим account-wide; heading для SOL.
         self.margin_mode_button: Locator = page.get_by_role("button", name="Cross", exact=True)
         self.margin_mode_heading: Locator = page.get_by_text("Margin mode for SOL")
+        self.margin_mode_cross_option: Locator = page.get_by_text("Cross margin").first
         self.margin_mode_isolated_option: Locator = page.get_by_text("Isolated margin").first
         self.margin_mode_confirm: Locator = page.get_by_role("button", name="Confirm")
         self.margin_mode_close: Locator = page.get_by_role("button", name="Close", exact=True)
@@ -661,6 +662,27 @@ class SolTradingPage(BasePage):
         expect(self.margin_mode_heading).to_be_visible(timeout=10_000)
         self.margin_mode_isolated_option.click()
         self.margin_mode_confirm.click()
+
+    def switch_margin_mode_to_cross(self) -> None:
+        """Перемкнути режим маржі Isolated -> Cross через модалку (account-wide)."""
+        self.margin_mode_button_isolated.click()
+        expect(self.margin_mode_heading).to_be_visible(timeout=10_000)
+        self.margin_mode_cross_option.click()
+        self.margin_mode_confirm.click()
+
+    def ensure_isolated_mode(self) -> None:
+        """Гарантувати режим Isolated (ідемпотентно)."""
+        if self.margin_mode_button_isolated.is_visible():
+            return
+        self.switch_margin_mode_to_isolated()
+        expect(self.margin_mode_button_isolated).to_be_visible(timeout=10_000)
+
+    def ensure_cross_mode(self) -> None:
+        """Гарантувати режим Cross (ідемпотентно)."""
+        if self.margin_mode_button.is_visible():
+            return
+        self.switch_margin_mode_to_cross()
+        expect(self.margin_mode_button).to_be_visible(timeout=10_000)
 
     def cleanup_all(self) -> None:
         """Закрити всі позиції й скасувати всі ордери. Для teardown-фікстури."""
