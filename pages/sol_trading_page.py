@@ -784,3 +784,11 @@ class SolTradingPage(BasePage):
         )
         new_text = self.long_position_margin.inner_text()
         return float(new_text)
+
+    def wait_for_long_position_size_change(self, from_text: str) -> float:
+        """Чекає, поки Size Long-позиції SOL зміниться відносно from_text.
+        Size має змінну кількість знаків, тож порівнюємо за сирим текстом.
+        """
+        expect(self.long_position_size).not_to_have_text(from_text, timeout=20_000)
+        new_text = self.long_position_size.inner_text()
+        return float(new_text)
