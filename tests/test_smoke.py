@@ -38,10 +38,15 @@ def test_trading_pair_selector_visible(trading_page: TradingPage):
 
     
 def test_sign_in_opens_auth_modal(trading_page: TradingPage):
-    """Клік по Sign In відкриває модальне вікно авторизації."""
+    """Клік по Sign In відкриває модальне вікно авторизації.
+
+    Auth-модалка — зовнішній Dynamic-віджет, що вантажиться асинхронно,
+    тож даємо збільшений timeout на її появу (дефолтного інколи бракує,
+    що давало флейк-падіння з rerun).
+    """
     trading_page.open()
     trading_page.click_sign_in()
-    expect(trading_page.auth_modal_heading).to_be_visible()
+    expect(trading_page.auth_modal_heading).to_be_visible(timeout=15_000)
 
 
 def test_auth_modal_can_be_closed(trading_page: TradingPage):
