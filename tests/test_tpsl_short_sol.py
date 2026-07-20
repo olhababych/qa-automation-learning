@@ -31,4 +31,7 @@ def test_open_short_with_tpsl_shows_in_position(
         expect(page.tp_order_placed_toast).to_be_visible(timeout=POSITION_TIMEOUT_MS)
         expect(page.sl_order_placed_toast).to_be_visible(timeout=POSITION_TIMEOUT_MS)
     finally:
-        page.close_position()
+        # cleanup_all, не лише close_position: TP/SL лишає окремі
+        # TP/SL-ордери в Orders, які close_position не скасовує —
+        # без цього орфанні ордери накопичуються й валять наступні тести.
+        page.cleanup_all()

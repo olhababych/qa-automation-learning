@@ -828,6 +828,15 @@ class TradingPage(BasePage):
 
         Затримка закриття — до 5 секунд (беремо 10 для запасу).
         """
+        # Крок 0: ідемпотентність. Якщо позиції немає (no_positions видно
+        # або кнопка Close відсутня) — тихо виходимо. Це критично для
+        # використання як teardown у finally: якщо тест впав ДО відкриття
+        # позиції, close_position не повинен падати сам і маскувати
+        # справжню помилку тесту.
+        if self.no_positions_text.is_visible():
+            return
+        if self.close_position_button.count() == 0:
+            return
         # Крок 1: дочекатись появи кнопки × (після Cancel у модалці вона може
         # перемальовуватись із затримкою) і клікнути — відкриває модалку
         expect(self.close_position_button).to_be_visible(timeout=20_000)

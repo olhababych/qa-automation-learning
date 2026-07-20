@@ -51,4 +51,6 @@ def test_open_long_with_tpsl_shows_in_position(
             timeout=POSITION_TIMEOUT_MS
         )
     finally:
-        page.close_position()
+        # cleanup_all замість close_position: TP/SL лишає окремі
+        # TP/SL-ордери в Orders — без їх скасування орфани валять сусідів.
+        page.cleanup_all()
