@@ -417,7 +417,12 @@ class SolTradingPage(BasePage):
             iterations += 1
 
         # Застосувати зміну
-        self.leverage_modal_confirm.click()
+        # Якщо значення вже = target (iterations==0), Confirm НЕ закриває
+        # модалку (no-op, backdrop висить) — закриваємо через Close.
+        if iterations == 0:
+            self.leverage_modal_close.click()
+        else:
+            self.leverage_modal_confirm.click()
 
         # Чекаємо, поки модалка реально закриється.
         # Після кліку Confirm текст кнопки змінюється на "Processing…"
