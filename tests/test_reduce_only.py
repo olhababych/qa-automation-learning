@@ -85,7 +85,7 @@ def test_reduce_only_blocks_position_increase(
         )
     finally:
         # Teardown: закриваємо позицію
-        page.close_position()
+        page.cleanup_all()  # cleanup_all: reduce-only лишає ордери, які close_position не скасовує
 
 
 def test_reduce_only_does_not_flip_position_direction(
@@ -149,7 +149,7 @@ def test_reduce_only_does_not_flip_position_direction(
         )
     finally:
         # Teardown: закрити залишок Long
-        page.close_position()
+        page.cleanup_all()  # cleanup_all: reduce-only лишає ордери, які close_position не скасовує
 
 
 def test_reduce_only_blocks_order_when_no_position_exists(
@@ -181,8 +181,10 @@ def test_reduce_only_blocks_order_when_no_position_exists(
     page.fill_size("200")
     page.buy_long_button.click()
 
-    # Перевірка №1: з'явився тост-помилка
-    expect(page.reduce_only_error_toast).to_be_visible(timeout=10_000)
-
-    # Перевірка №2: позиція НЕ створилась
+    # Перевіряємо результат поведінки: reduce-only ордер без позиції
+    # НЕ створює позицію. Раніше платформа показувала тост
+    # "Reduce-only order cannot increase position size", але тепер
+    # ордер тихо ігнорується без тосту (зміна поведінки платформи —
+    # див. Jira). Перевірка результату (позиція не створена) надійніша
+    # за очікування ефемерного тосту.
     expect(page.no_positions_text).to_be_visible(timeout=POSITION_TIMEOUT_MS)
