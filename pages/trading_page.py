@@ -245,6 +245,21 @@ class TradingPage(BasePage):
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
             .locator("> div").nth(-3)
         )
+
+        # Liq. price — 4-та колонка з кінця (Entry, LIQ, Margin, P&L, Auto close).
+        # На dev поки показує "-" (бекенд не рахує ліквідацію), див. skip-тест.
+        self.long_position_liq_price: Locator = (
+            page.locator("img[alt='long']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(-4)
+        )
+
+        # Entry price — 5-та колонка з кінця.
+        self.long_position_entry_price: Locator = (
+            page.locator("img[alt='long']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(-5)
+        )
         # Margin для Short — третя колонка з кінця (та сама логіка, що для long).
         # Індикатор Short саме в рядку позиції (h-14), не в формі напрямку.
         self.short_position_indicator: Locator = (
@@ -947,6 +962,18 @@ class TradingPage(BasePage):
         margin_text = self.long_position_margin.inner_text()
         return float(margin_text)
     
+
+    def get_long_position_entry_price(self) -> float:
+        """Прочитати entry price Long-позиції як float.
+
+        Використовується у тестах ліквідації для порівняння Liq. price
+        з ціною входу.
+        """
+        expect(self.long_position_entry_price).to_have_text(
+            re.compile(r"^[\d,]+\.\d+$"), timeout=20_000
+        )
+        text = self.long_position_entry_price.inner_text()
+        return float(text.replace(",", ""))
 
     def get_long_position_size(self) -> float:
         """Прочитати поточне значення Size у Long-позиції BTCUSDC.
