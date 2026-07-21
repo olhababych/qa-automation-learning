@@ -862,6 +862,7 @@ class TradingPage(BasePage):
         self.margin_mode_isolated_option.click()
         self.margin_mode_confirm.click()
         expect(self.margin_mode_heading).not_to_be_visible(timeout=10_000)
+        expect(self.page.locator("div.bg-black\\/60.backdrop-blur-xs")).not_to_be_visible(timeout=10_000)
 
     def ensure_isolated_mode(self) -> None:
         """Гарантувати режим Isolated: перемкнути, лише якщо ще не Isolated.
@@ -895,6 +896,7 @@ class TradingPage(BasePage):
         # Confirm перемикає режим, але модалка закривається із затримкою —
         # чекаємо її зникнення, інакше вона перекриває форму.
         expect(self.margin_mode_heading).not_to_be_visible(timeout=10_000)
+        expect(self.page.locator("div.bg-black\\/60.backdrop-blur-xs")).not_to_be_visible(timeout=10_000)
 
     def cleanup_all(self) -> None:
         """Закрити всі позиції й скасувати всі ордери. Для teardown-фікстури.

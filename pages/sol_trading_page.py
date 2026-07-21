@@ -674,6 +674,7 @@ class SolTradingPage(BasePage):
         self.margin_mode_isolated_option.click()
         self.margin_mode_confirm.click()
         expect(self.margin_mode_heading).not_to_be_visible(timeout=10_000)
+        expect(self.page.locator("div.bg-black\\/60.backdrop-blur-xs")).not_to_be_visible(timeout=10_000)
 
     def switch_margin_mode_to_cross(self) -> None:
         """Перемкнути режим маржі Isolated -> Cross через модалку (account-wide)."""
@@ -684,6 +685,7 @@ class SolTradingPage(BasePage):
         # Confirm перемикає режим, але модалка закривається із затримкою —
         # чекаємо її зникнення, інакше вона перекриває форму.
         expect(self.margin_mode_heading).not_to_be_visible(timeout=10_000)
+        expect(self.page.locator("div.bg-black\\/60.backdrop-blur-xs")).not_to_be_visible(timeout=10_000)
 
     def ensure_isolated_mode(self) -> None:
         """Гарантувати режим Isolated (ідемпотентно)."""
