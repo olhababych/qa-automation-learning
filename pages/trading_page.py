@@ -861,11 +861,15 @@ class TradingPage(BasePage):
         expect(self.margin_mode_heading).to_be_visible(timeout=10_000)
         self.margin_mode_isolated_option.click()
         self.margin_mode_confirm.click()
+        expect(self.margin_mode_heading).not_to_be_visible(timeout=10_000)
 
     def ensure_isolated_mode(self) -> None:
         """Гарантувати режим Isolated: перемкнути, лише якщо ще не Isolated.
         Ідемпотентно — безпечно викликати незалежно від поточного стану.
         """
+        if self.margin_mode_heading.is_visible():
+            self.margin_mode_close.click()
+            expect(self.margin_mode_heading).not_to_be_visible(timeout=5_000)
         if self.margin_mode_button_isolated.is_visible():
             return  # вже Isolated
         self.switch_margin_mode_to_isolated()
@@ -873,6 +877,10 @@ class TradingPage(BasePage):
 
     def ensure_cross_mode(self) -> None:
         """Гарантувати режим Cross: перемкнути, лише якщо ще не Cross."""
+        # Закрити залишкову модалку режиму, якщо висить від попереднього тесту.
+        if self.margin_mode_heading.is_visible():
+            self.margin_mode_close.click()
+            expect(self.margin_mode_heading).not_to_be_visible(timeout=5_000)
         if self.margin_mode_button.is_visible():
             return  # вже Cross
         self.switch_margin_mode_to_cross()
@@ -884,6 +892,9 @@ class TradingPage(BasePage):
         expect(self.margin_mode_heading).to_be_visible(timeout=10_000)
         self.margin_mode_cross_option.click()
         self.margin_mode_confirm.click()
+        # Confirm перемикає режим, але модалка закривається із затримкою —
+        # чекаємо її зникнення, інакше вона перекриває форму.
+        expect(self.margin_mode_heading).not_to_be_visible(timeout=10_000)
 
     def cleanup_all(self) -> None:
         """Закрити всі позиції й скасувати всі ордери. Для teardown-фікстури.
