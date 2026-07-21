@@ -260,6 +260,19 @@ class TradingPage(BasePage):
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
             .locator("> div").nth(-5)
         )
+
+        # Short-позиція: Liq. price (nth -4) та Entry (nth -5), той самий
+        # порядок колонок, що для long, але рядок таргетиться по img[alt='short'].
+        self.short_position_liq_price: Locator = (
+            page.locator("img[alt='short']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(-4)
+        )
+        self.short_position_entry_price: Locator = (
+            page.locator("img[alt='short']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(-5)
+        )
         # Margin для Short — третя колонка з кінця (та сама логіка, що для long).
         # Індикатор Short саме в рядку позиції (h-14), не в формі напрямку.
         self.short_position_indicator: Locator = (
@@ -973,6 +986,14 @@ class TradingPage(BasePage):
             re.compile(r"^[\d,]+\.\d+$"), timeout=20_000
         )
         text = self.long_position_entry_price.inner_text()
+        return float(text.replace(",", ""))
+
+    def get_short_position_entry_price(self) -> float:
+        """Прочитати entry price Short-позиції як float."""
+        expect(self.short_position_entry_price).to_have_text(
+            re.compile(r"^[\d,]+\.\d+$"), timeout=20_000
+        )
+        text = self.short_position_entry_price.inner_text()
         return float(text.replace(",", ""))
 
     def get_long_position_size(self) -> float:

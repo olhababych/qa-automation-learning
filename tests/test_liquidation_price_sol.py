@@ -1,34 +1,22 @@
 """
-Тести відображення ліквідаційної ціни (Liq. price) — BTCUSDC.
+Тести відображення ліквідаційної ціни (Liq. price) — SOLUSDC.
 
-СТАТУС: SKIP — на dev-стенді ліквідація ще не реалізована.
-Розслідування (липень 2026):
-- UI показує Liq. price = "-" у рядку позиції та "TBD" у формі,
-  для Cross і Isolated, при leverage 10x і 50x.
-- API /v1/positions повертає позицію БЕЗ поля liquidation_price
-  (лише size, entryPrice, leverage, margin, realizedPnl, unrealizedPnl,
-  fundingCumulativeIndex).
-- Market config /v1/markets має mm_ratio і liquidation_fee,
-  але risk_factor=0 і status="New".
-Тобто бекенд поки не рахує й не віддає liquidation_price.
+Дзеркало test_liquidation_price.py для SOL-пари.
+СТАТУС: SKIP — на dev ліквідація ще не рахується (див. деталі в BTC-файлі).
 
-Логіка ліквідації, яку перевіряємо:
-- Long: liq price НИЖЧЕ entry (ціна падає -> втрати -> ліквідація).
-- Short: liq price ВИЩЕ entry (ціна росте -> втрати -> ліквідація).
-- Вище плече -> liq price ближче до entry (менший буфер).
-
-Коли фічу активують: прибрати @pytest.mark.skip і перевірити.
+Логіка: Long -> liq нижче entry; Short -> liq вище entry;
+вище плече -> liq ближче до entry.
 """
 
 import re
 
 import pytest
 
-pytestmark = [pytest.mark.liquidation, pytest.mark.btc]
+pytestmark = [pytest.mark.liquidation, pytest.mark.sol]
 
 from playwright.sync_api import expect
 
-from pages.trading_page import TradingPage
+from pages.sol_trading_page import SolTradingPage
 
 POSITION_TIMEOUT_MS = 20_000
 POSITION_SIZE_USDC = "200"
@@ -48,11 +36,11 @@ def _to_float(text: str) -> float:
 # --------------------------- Cross ---------------------------
 
 @pytest.mark.skip(reason=SKIP_REASON)
-def test_long_liquidation_price_below_entry_cross(
-    authenticated_trading_page: TradingPage,
+def test_long_liquidation_price_below_entry_cross_sol(
+    authenticated_sol_trading_page: SolTradingPage,
 ):
-    """Long/Cross/50x: Liq. price — число, нижче entry price."""
-    page = authenticated_trading_page
+    """Long/Cross/50x SOL: Liq. price — число, нижче entry."""
+    page = authenticated_sol_trading_page
     page.ensure_cross_mode()
     page.set_leverage(50)
     page.open_long_position(POSITION_SIZE_USDC)
@@ -66,11 +54,11 @@ def test_long_liquidation_price_below_entry_cross(
 
 
 @pytest.mark.skip(reason=SKIP_REASON)
-def test_short_liquidation_price_above_entry_cross(
-    authenticated_trading_page: TradingPage,
+def test_short_liquidation_price_above_entry_cross_sol(
+    authenticated_sol_trading_page: SolTradingPage,
 ):
-    """Short/Cross/50x: Liq. price — число, вище entry price."""
-    page = authenticated_trading_page
+    """Short/Cross/50x SOL: Liq. price — число, вище entry."""
+    page = authenticated_sol_trading_page
     page.ensure_cross_mode()
     page.set_leverage(50)
     page.open_short_position(POSITION_SIZE_USDC)
@@ -84,11 +72,11 @@ def test_short_liquidation_price_above_entry_cross(
 
 
 @pytest.mark.skip(reason=SKIP_REASON)
-def test_higher_leverage_moves_liq_closer_to_entry_cross(
-    authenticated_trading_page: TradingPage,
+def test_higher_leverage_moves_liq_closer_to_entry_cross_sol(
+    authenticated_sol_trading_page: SolTradingPage,
 ):
-    """Long/Cross: 50x-ліквідація ближче до entry, ніж 10x."""
-    page = authenticated_trading_page
+    """Long/Cross SOL: 50x-ліквідація ближче до entry, ніж 10x."""
+    page = authenticated_sol_trading_page
     page.ensure_cross_mode()
 
     page.set_leverage(10)
@@ -113,11 +101,11 @@ def test_higher_leverage_moves_liq_closer_to_entry_cross(
 # --------------------------- Isolated ---------------------------
 
 @pytest.mark.skip(reason=SKIP_REASON)
-def test_long_liquidation_price_below_entry_isolated(
-    authenticated_trading_page: TradingPage,
+def test_long_liquidation_price_below_entry_isolated_sol(
+    authenticated_sol_trading_page: SolTradingPage,
 ):
-    """Long/Isolated/50x: Liq. price — число, нижче entry price."""
-    page = authenticated_trading_page
+    """Long/Isolated/50x SOL: Liq. price — число, нижче entry."""
+    page = authenticated_sol_trading_page
     page.ensure_cross_mode()
     page.ensure_isolated_mode()
     page.set_leverage(50)
@@ -133,11 +121,11 @@ def test_long_liquidation_price_below_entry_isolated(
 
 
 @pytest.mark.skip(reason=SKIP_REASON)
-def test_short_liquidation_price_above_entry_isolated(
-    authenticated_trading_page: TradingPage,
+def test_short_liquidation_price_above_entry_isolated_sol(
+    authenticated_sol_trading_page: SolTradingPage,
 ):
-    """Short/Isolated/50x: Liq. price — число, вище entry price."""
-    page = authenticated_trading_page
+    """Short/Isolated/50x SOL: Liq. price — число, вище entry."""
+    page = authenticated_sol_trading_page
     page.ensure_cross_mode()
     page.ensure_isolated_mode()
     page.set_leverage(50)
@@ -153,11 +141,11 @@ def test_short_liquidation_price_above_entry_isolated(
 
 
 @pytest.mark.skip(reason=SKIP_REASON)
-def test_higher_leverage_moves_liq_closer_to_entry_isolated(
-    authenticated_trading_page: TradingPage,
+def test_higher_leverage_moves_liq_closer_to_entry_isolated_sol(
+    authenticated_sol_trading_page: SolTradingPage,
 ):
-    """Long/Isolated: 50x-ліквідація ближче до entry, ніж 10x."""
-    page = authenticated_trading_page
+    """Long/Isolated SOL: 50x-ліквідація ближче до entry, ніж 10x."""
+    page = authenticated_sol_trading_page
     page.ensure_cross_mode()
     page.ensure_isolated_mode()
 

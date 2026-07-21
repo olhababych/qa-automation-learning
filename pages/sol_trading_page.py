@@ -201,6 +201,29 @@ class SolTradingPage(BasePage):
             .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
             .locator("> div").nth(-3)
         )
+
+        # Liq. price (nth -4) та Entry price (nth -5) для long і short.
+        # На dev поки "-" (бекенд не рахує ліквідацію) — див. test_liquidation_price_sol.
+        self.long_position_liq_price: Locator = (
+            page.locator("img[alt='long']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(-4)
+        )
+        self.long_position_entry_price: Locator = (
+            page.locator("img[alt='long']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(-5)
+        )
+        self.short_position_liq_price: Locator = (
+            page.locator("img[alt='short']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(-4)
+        )
+        self.short_position_entry_price: Locator = (
+            page.locator("img[alt='short']")
+            .locator("xpath=ancestor::div[contains(@class, 'h-14')][1]")
+            .locator("> div").nth(-5)
+        )
         
         # Size позиції — 4-та колонка таблиці (Direction, Asset, Leverage, SIZE, ...).
         # Розмір у SOL (наприклад, "2.9914"). На відміну від margin, Size не змінюється
@@ -775,6 +798,20 @@ class SolTradingPage(BasePage):
         )
         size_text = self.long_position_size.inner_text()
         return float(size_text)
+
+    def get_long_position_entry_price(self) -> float:
+        """Прочитати entry price Long-позиції SOL як float."""
+        expect(self.long_position_entry_price).to_have_text(
+            re.compile(r"^[\d,]+\.\d+$"), timeout=20_000
+        )
+        return float(self.long_position_entry_price.inner_text().replace(",", ""))
+
+    def get_short_position_entry_price(self) -> float:
+        """Прочитати entry price Short-позиції SOL як float."""
+        expect(self.short_position_entry_price).to_have_text(
+            re.compile(r"^[\d,]+\.\d+$"), timeout=20_000
+        )
+        return float(self.short_position_entry_price.inner_text().replace(",", ""))
 
     def wait_for_long_position_margin_change(self, from_value: float) -> float:
         """Чекає, поки margin Long-позиції зміниться відносно from_value,
