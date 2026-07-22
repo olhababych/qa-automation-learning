@@ -307,6 +307,9 @@ class TradingPage(BasePage):
         # Margin mode модалка (Cross / Isolated). Isolated ще в розробці.
         self.margin_mode_button: Locator = page.get_by_role("button", name="Cross", exact=True)
         self.margin_mode_heading: Locator = page.get_by_text("Margin mode for BTC")
+        # Backdrop-оверлей модалки. КЛЮЧОВЕ: heading зникає РАНІШЕ за backdrop,
+        # тому чистоту стану перевіряємо саме по backdrop (він гасне останнім).
+        self.margin_mode_backdrop: Locator = page.locator("div.bg-black\\/60.backdrop-blur-xs")
         self.margin_mode_cross_option: Locator = page.get_by_text("Cross margin").first
         self.margin_mode_isolated_option: Locator = page.get_by_text("Isolated margin").first
         self.margin_mode_confirm: Locator = page.get_by_role("button", name="Confirm")
@@ -889,16 +892,18 @@ class TradingPage(BasePage):
         expect(self.margin_mode_heading).to_be_visible(timeout=10_000)
         self.margin_mode_isolated_option.click()
         self.margin_mode_confirm.click()
-        expect(self.margin_mode_heading).not_to_be_visible(timeout=10_000)
+        self.margin_mode_backdrop.wait_for(state="hidden", timeout=10_000)
         expect(self.page.locator("div.bg-black\\/60.backdrop-blur-xs")).not_to_be_visible(timeout=10_000)
 
     def ensure_isolated_mode(self) -> None:
         """Гарантувати режим Isolated: перемкнути, лише якщо ще не Isolated.
         Ідемпотентно — безпечно викликати незалежно від поточного стану.
         """
-        if self.margin_mode_heading.is_visible():
-            self.margin_mode_close.click()
-            expect(self.margin_mode_heading).not_to_be_visible(timeout=5_000)
+        # Прибрати залишкову модалку від попереднього тесту. Перевіряємо BACKDROP
+        # (гасне останнім, heading зникає раніше). Escape закриває надійніше за клік.
+        if self.margin_mode_backdrop.is_visible():
+            self.page.keyboard.press("Escape")
+            self.margin_mode_backdrop.wait_for(state="hidden", timeout=5_000)
         if self.margin_mode_button_isolated.is_visible():
             return  # вже Isolated
         self.switch_margin_mode_to_isolated()
@@ -907,9 +912,11 @@ class TradingPage(BasePage):
     def ensure_cross_mode(self) -> None:
         """Гарантувати режим Cross: перемкнути, лише якщо ще не Cross."""
         # Закрити залишкову модалку режиму, якщо висить від попереднього тесту.
-        if self.margin_mode_heading.is_visible():
-            self.margin_mode_close.click()
-            expect(self.margin_mode_heading).not_to_be_visible(timeout=5_000)
+        # Прибрати залишкову модалку від попереднього тесту. Перевіряємо BACKDROP
+        # (гасне останнім, heading зникає раніше). Escape закриває надійніше за клік.
+        if self.margin_mode_backdrop.is_visible():
+            self.page.keyboard.press("Escape")
+            self.margin_mode_backdrop.wait_for(state="hidden", timeout=5_000)
         if self.margin_mode_button.is_visible():
             return  # вже Cross
         self.switch_margin_mode_to_cross()
@@ -923,7 +930,7 @@ class TradingPage(BasePage):
         self.margin_mode_confirm.click()
         # Confirm перемикає режим, але модалка закривається із затримкою —
         # чекаємо її зникнення, інакше вона перекриває форму.
-        expect(self.margin_mode_heading).not_to_be_visible(timeout=10_000)
+        self.margin_mode_backdrop.wait_for(state="hidden", timeout=10_000)
         expect(self.page.locator("div.bg-black\\/60.backdrop-blur-xs")).not_to_be_visible(timeout=10_000)
 
     def cleanup_all(self) -> None:
@@ -931,26 +938,32 @@ class TradingPage(BasePage):
         Безпечний: ловить винятки, не валить тест якщо чисто."""
         try:
             self.orders_tab.click(timeout=10_000)
-            for _ in range(10):
-                if self.no_orders_text.is_visible():
-                    break
-                try:
-                    self.cancel_first_order()
-                except Exception:
-                    break
         except Exception:
             pass
+        for _ in range(10):
+            if self.no_orders_text.is_visible():
+                break
+            try:
+                self.cancel_first_order()
+            except Exception:
+                self.page.wait_for_timeout(1000)
+                continue
+        expect(self.no_orders_text).to_be_visible(timeout=15_000)
         try:
             self.positions_tab_any.first.click(timeout=10_000)
         except Exception:
             pass
         for _ in range(10):
+            if self.no_positions_text.is_visible():
+                break
             try:
-                if self.no_positions_text.is_visible():
-                    break
                 self.close_position()
             except Exception:
-                break
+                self.page.wait_for_timeout(1000)
+                continue
+        # Пересвідчитись, що позиції реально зникли, перш ніж віддати керування
+        # (інакше наступний ensure_*_mode впаде на 409 через відкриту позицію).
+        expect(self.no_positions_text).to_be_visible(timeout=15_000)
 
     def get_long_position_margin(self) -> float:
         """Прочитати поточне значення Margin у Long-позиції BTCUSDC.
